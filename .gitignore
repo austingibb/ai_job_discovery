@@ -1,0 +1,15 @@
+# VS Code specific files
+.vscode/*
+# Ignore personal config, keep examples
+config/*
+!config/examples/
+
+# Ignore generated reports and personal markdown
+*.md
+!config/examples/**/*.md
+
+# Common build/temp files
+/node_modules
+/bin
+/obj
+*.log
