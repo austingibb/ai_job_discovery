@@ -6,6 +6,7 @@ config/*
 
 # Ignore generated reports and personal markdown
 *.md
+!README.md
 !config/examples/**/*.md
 
 # Common build/temp files
