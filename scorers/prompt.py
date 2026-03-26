@@ -69,3 +69,10 @@ def build_prompt(profile: UserProfile, jobs: list[JobListing], start_index: int 
         fit_criteria=profile.fit_criteria,
         jobs=_format_jobs(jobs, start_index),
     )
+
+
+def build_continuation_prompt(jobs: list[JobListing], start_index: int) -> str:
+    return (
+        f"Continue scoring the next batch of jobs using the same rules and criteria.\n\n"
+        f"{_format_jobs(jobs, start_index)}"
+    )
