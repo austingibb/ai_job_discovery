@@ -104,12 +104,9 @@ This step is not needed if you're only using API-based plugins and scorers.
 python main.py
 ```
 
-This will:
-1. Open LinkedIn Jobs in the automated browser
-2. Pause for you to set your search filters (location, keywords, etc.)
-3. Scrape job listings across multiple pages
-4. Score each listing against your profile using Claude
-5. Write a ranked report to `output/report.md`
+The pipeline gathers job listings using the configured scraper plugin, scores them against your profile using the configured AI scorer, and writes a ranked report to `output/report.md`.
+
+The defaults are LinkedIn for scraping and Claude browser automation for scoring (browser automation is used because Claude Pro does not include API access). Both can be swapped for API-based or other implementations — see [Extending](#extending) below.
 
 To write the report to a different file:
 
