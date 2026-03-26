@@ -98,6 +98,8 @@ Once the browser is running, log into any sites required by the plugins and scor
 
 This step is not needed if you're only using API-based plugins and scorers.
 
+**Note:** Browser-based plugins rely on specific DOM selectors to interact with each site. If a site updates its markup, these selectors may break and need to be updated in the plugin or scorer source code.
+
 ## Usage
 
 ```bash
