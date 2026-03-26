@@ -4,10 +4,8 @@
 config/*
 !config/examples/
 
-# Ignore generated reports and personal markdown
-*.md
-!README.md
-!config/examples/**/*.md
+# Ignore generated reports
+output/
 
 # Common build/temp files
 /node_modules

@@ -15,8 +15,8 @@ def main() -> None:
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path("report.md"),
-        help="Path to write the report (default: report.md)",
+        default=Path("output/report.md"),
+        help="Path to write the report (default: output/report.md)",
     )
     args = parser.parse_args()
 
