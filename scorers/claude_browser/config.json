@@ -1,0 +1,5 @@
+{
+  "cdp_url": "http://localhost:9222",
+  "default_url": "https://claude.ai/new",
+  "batch_size": 5
+}
