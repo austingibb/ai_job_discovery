@@ -30,7 +30,12 @@ class ScoredResult:
     reasoning: str
 
 
-ScoringResult = FilteredResult | ScoredResult
+@dataclass
+class FailedResult:
+    reason: str
+
+
+ScoringResult = FilteredResult | ScoredResult | FailedResult
 
 
 class ScoringError(Exception):

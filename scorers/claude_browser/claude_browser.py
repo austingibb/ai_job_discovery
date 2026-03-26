@@ -3,7 +3,7 @@ from pathlib import Path
 
 from playwright.sync_api import Page
 
-from models import JobListing, ScoringResult, ScoringError, UserProfile
+from models import FailedResult, JobListing, ScoringResult, ScoringError, UserProfile
 from scorers.parser import parse_response
 from scorers.prompt import build_prompt, build_continuation_prompt
 
@@ -41,8 +41,12 @@ class ClaudeBrowserScorer:
                     else:
                         prompt = build_continuation_prompt(batch, start_index=i)
 
-                    response = self._send_message(page, prompt)
-                    results.extend(parse_response(response, batch, start_index=i))
+                    try:
+                        response = self._send_message(page, prompt)
+                        results.extend(parse_response(response, batch, start_index=i))
+                    except Exception as e:
+                        print(f"  [error] Batch failed, skipping {len(batch)} jobs: {e}")
+                        results.extend(FailedResult(reason=str(e)) for _ in batch)
 
             finally:
                 page.close()
@@ -53,17 +57,33 @@ class ClaudeBrowserScorer:
     def _send_message(self, page: Page, prompt: str) -> str:
         editor = page.locator('div[contenteditable="true"][data-testid="chat-input"]').first
         editor.wait_for(state="visible")
+        page.wait_for_timeout(1000)
+
         editor.click()
-        page.evaluate(
+        editor.focus()
+
+        inserted = page.evaluate(
             "(text) => document.execCommand('insertText', false, text)",
             prompt,
         )
+
+        editor_text = editor.inner_text()
+        prompt_preview = prompt[:80].replace("\n", " ")
+        print(f"  [send] insertText returned {inserted}, editor length: {len(editor_text)} chars, prompt: \"{prompt_preview}...\"")
+
+        if not inserted or len(editor_text.strip()) == 0:
+            raise ScoringError(
+                "Failed to insert prompt into editor",
+                raw_response="",
+            )
 
         page.keyboard.press("Enter")
 
         streaming = page.locator('[data-is-streaming="true"]')
         streaming.wait_for(state="attached", timeout=15_000)
         streaming.wait_for(state="detached", timeout=300_000)
+
+        page.wait_for_timeout(1000)
 
         responses = page.locator('.standard-markdown')
         return responses.last.inner_text()
