@@ -43,11 +43,11 @@ def report(
     output_path: Path,
 ) -> None:
     lines: list[str] = [f"# Results: {len(ranked)} scored, {len(filtered)} filtered, {len(failed)} failed\n"]
-    for job, result in ranked:
+    for rank, (job, result) in enumerate(ranked, start=1):
         lines.append("---\n")
-        lines.append(f"| Title | Fit | Link |")
-        lines.append(f"|-------|-----|------|")
-        lines.append(f"| {job.title} at {job.company} | {result.score}/100 | [View]({job.url}) |")
+        lines.append(f"| # | Title | Fit | Link |")
+        lines.append(f"|---|-------|-----|------|")
+        lines.append(f"| {rank} | {job.title} at {job.company} | {result.score}/100 | [View]({job.url}) |")
         lines.append(f"\n{result.reasoning}\n")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
