@@ -1,10 +1,10 @@
 # AI Job Discovery
 
+Plugin-based job discovery pipeline that scrapes job boards via Playwright, scores listings against user-defined criteria using LLM integration, and generates ranked reports based on job fit.
+
 > **Warning:** The LinkedIn scraper plugin operates via browser automation on a Chrome instance where you are logged into LinkedIn. This means the scraper has full access to your authenticated LinkedIn session. Review the source code in `plugins/linkedin/` to verify what it does — there is nothing nefarious, but you should satisfy yourself of that before running it. The same applies to any browser-based scorer (e.g., `scorers/claude_browser/`), which operates on your authenticated claude.ai session.
 >
 > Browser automation is used because LinkedIn does not expose job search through its API for basic apps created in the LinkedIn developer portal, and Claude Pro chat subscriptions do not include API access. If you have API access for either service, a non-browser plugin/scorer could replace these.
-
-Plugin-based job discovery pipeline that scrapes job boards via Playwright, scores listings against user-defined criteria using LLM integration, and generates ranked reports based on job fit.
 
 ## How It Works
 
