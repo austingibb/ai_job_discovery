@@ -2,25 +2,28 @@ import argparse
 from pathlib import Path
 
 from models import FailedResult, FilteredResult, JobListing, ScoredResult
-from config import load_prefilter, load_profile, load_scorer_config
+from config import _select_profile_dir, load_prefilter, load_profile, load_scorer_config
 from plugins.linkedin.linkedin import LinkedInPlugin
 from scorers.claude_browser.claude_browser import ClaudeBrowserScorer
 
 
-def scrape() -> list[JobListing]:
-    prefilter = load_prefilter()
+def scrape(profile_dir: Path) -> list[JobListing]:
+    prefilter = load_prefilter(profile_dir)
     plugin = LinkedInPlugin(
         exclude_companies=prefilter["exclude_companies"],
         exclude_title_keywords=prefilter["exclude_title_keywords"],
+        filter_reposts=prefilter.get("filter_reposts", False),
+        max_age_days=prefilter.get("max_age_days"),
     )
     return plugin.scrape()
 
 
 def score(
     jobs: list[JobListing],
+    profile_dir: Path,
 ) -> tuple[list[tuple[JobListing, ScoredResult]], list[tuple[JobListing, FilteredResult]], list[tuple[JobListing, FailedResult]]]:
-    profile = load_profile()
-    scorer_config = load_scorer_config("claude_browser")
+    profile = load_profile(profile_dir)
+    scorer_config = load_scorer_config("claude_browser", profile_dir)
     scorer = ClaudeBrowserScorer(project_url=scorer_config.get("project_url"))
 
     scored = []
@@ -65,8 +68,9 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    jobs = scrape()
-    ranked, filtered, failed = score(jobs)
+    profile_dir = _select_profile_dir()
+    jobs = scrape(profile_dir)
+    ranked, filtered, failed = score(jobs, profile_dir)
     report(ranked, filtered, failed, args.output)
 
 

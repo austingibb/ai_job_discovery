@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 
 from playwright.sync_api import Page
@@ -13,12 +14,16 @@ class LinkedInPlugin:
         self,
         exclude_companies: list[str] | None = None,
         exclude_title_keywords: list[str] | None = None,
+        filter_reposts: bool = False,
+        max_age_days: int | None = None,
     ) -> None:
         config = json.loads(_CONFIG_PATH.read_text())
         self.cdp_url: str = config["cdp_url"]
         self.num_pages: int = config.get("num_pages", 1)
         self.exclude_companies: set[str] = {c.lower() for c in (exclude_companies or [])}
         self.exclude_title_keywords: list[str] = [k.lower() for k in (exclude_title_keywords or [])]
+        self.filter_reposts: bool = filter_reposts
+        self.max_age_days: int | None = max_age_days
 
     def scrape(self) -> list[JobListing]:
         from playwright.sync_api import sync_playwright
@@ -38,8 +43,18 @@ class LinkedInPlugin:
             finally:
                 page.close()
 
+    @staticmethod
+    def _parse_age_days(text: str) -> float | None:
+        """Parse LinkedIn age text like '13 hours ago' or 'Reposted 2 days ago' into days."""
+        m = re.search(r"(\d+)\s+(hour|day|week|month)", text, re.IGNORECASE)
+        if not m:
+            return None
+        n = int(m.group(1))
+        unit = m.group(2).lower()
+        return {"hour": n / 24, "day": float(n), "week": float(n * 7), "month": float(n * 30)}[unit]
+
     def _prefilter(self, stubs: list[JobListing]) -> list[JobListing]:
-        """Drop stubs by company name or title keyword before fetching descriptions."""
+        """Drop stubs by company, title keyword, repost status, or age."""
         kept = []
         for stub in stubs:
             if stub.company.lower() in self.exclude_companies:
@@ -49,6 +64,14 @@ class LinkedInPlugin:
             if any(kw in title_lower for kw in self.exclude_title_keywords):
                 print(f"  [prefilter] Skipping {stub.title} @ {stub.company} (excluded title keyword)")
                 continue
+            if self.filter_reposts and "reposted" in stub.date_posted.lower():
+                print(f"  [prefilter] Skipping {stub.title} @ {stub.company} (repost)")
+                continue
+            if self.max_age_days is not None:
+                age_days = self._parse_age_days(stub.date_posted)
+                if age_days is not None and age_days > self.max_age_days:
+                    print(f"  [prefilter] Skipping {stub.title} @ {stub.company} ({age_days:.1f}d old)")
+                    continue
             kept.append(stub)
         print(f"Prefilter: {len(stubs) - len(kept)} dropped, {len(kept)} remaining.")
         return kept
@@ -104,7 +127,6 @@ class LinkedInPlugin:
             paragraphs = card.locator("p").all_inner_texts()
             company = paragraphs[1] if len(paragraphs) > 1 else ""
             location = paragraphs[2] if len(paragraphs) > 2 else ""
-            date_posted = paragraphs[-1] if paragraphs else ""
 
             # Click the card to load the detail panel and get the job ID from the URL.
             card.click()
@@ -115,6 +137,13 @@ class LinkedInPlugin:
             if "currentJobId=" in current_url:
                 job_id = current_url.split("currentJobId=")[1].split("&")[0]
             url = f"https://www.linkedin.com/jobs/view/{job_id}/" if job_id else current_url
+
+            # Read the posting date/repost status from the detail panel header.
+            # LinkedIn renders this as a <strong> tag: "13 hours ago" or "Reposted 11 hours ago".
+            # Using a browser-side :has-text() filter to avoid serializing all <strong> tags over CDP.
+            # Note: if LinkedIn adds many <strong> tags containing "ago" in future UI changes this may degrade.
+            date_locator = page.locator('strong:has-text("ago")')
+            date_posted = date_locator.first.inner_text() if date_locator.count() > 0 else ""
 
             # Read description from the detail panel.
             desc_locator = page.locator(

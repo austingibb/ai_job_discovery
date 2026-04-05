@@ -1,4 +1,6 @@
 {
   "exclude_companies": ["Revature", "Infosys", "Wipro"],
-  "exclude_title_keywords": ["staff", "manager", "director", "principal", "lead architect"]
+  "exclude_title_keywords": ["staff", "manager", "director", "principal", "lead architect"],
+  "filter_reposts": false,
+  "max_age_days": null
 }
