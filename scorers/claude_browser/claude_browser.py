@@ -68,8 +68,6 @@ class ClaudeBrowserScorer:
         )
 
         editor_text = editor.inner_text()
-        prompt_preview = prompt[:80].replace("\n", " ")
-        print(f"  [send] insertText returned {inserted}, editor length: {len(editor_text)} chars, prompt: \"{prompt_preview}...\"")
 
         if not inserted or len(editor_text.strip()) == 0:
             raise ScoringError(
