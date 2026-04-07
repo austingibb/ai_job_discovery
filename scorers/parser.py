@@ -31,7 +31,13 @@ def parse_response(response: str, jobs: list[JobListing], start_index: int = 0) 
     Results are returned in the same order as the input jobs list.
     Raises ScoringError if the response is malformed or job count doesn't match.
     """
-    raw_blocks = re.split(r"(?=^JOB_ID:)", response.strip(), flags=re.MULTILINE)
+    # Strip code fences and any preamble before the first JOB_ID.
+    first_job = re.search(r"^JOB_ID:", response, flags=re.MULTILINE)
+    if first_job:
+        response = response[first_job.start():]
+    response = re.sub(r"```\w*", "", response).strip()
+
+    raw_blocks = re.split(r"(?=^JOB_ID:)", response, flags=re.MULTILINE)
     blocks = [b.strip() for b in raw_blocks if b.strip()]
 
     if len(blocks) != len(jobs):

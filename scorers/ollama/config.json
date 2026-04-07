@@ -1,0 +1,6 @@
+{
+  "base_url": "http://localhost:11434",
+  "model": "gemma4:31b",
+  "batch_size": 1,
+  "timeout": 120
+}

@@ -44,9 +44,12 @@ def load_prefilter(profile_dir: Path) -> dict[str, list[str]]:
     return json.loads((profile_dir / "prefilter.json").read_text())
 
 
-def load_scorer_config(name: str, profile_dir: Path) -> dict:
-    scorer_path = profile_dir / "scorers" / f"{name}.json"
+def load_config() -> dict:
+    return json.loads((_CONFIG_DIR / "config.json").read_text())
+
+
+def load_scorer_config(name: str) -> dict:
+    scorer_path = _CONFIG_DIR / "scorers" / f"{name}.json"
     if scorer_path.exists():
         return json.loads(scorer_path.read_text())
-    # Fall back to top-level config/scorers/ for shared scorer configs
-    return json.loads((_CONFIG_DIR / "scorers" / f"{name}.json").read_text())
+    return {}

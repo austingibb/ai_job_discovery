@@ -106,19 +106,15 @@ class LinkedInPlugin:
         """
         # LinkedIn switched from job-card-component-ref-{id} componentkeys to UUIDs.
         # Filter to cards that contain a dismiss button to avoid footer elements.
-        unclicked = page.locator(
+        locator = page.locator(
             '[data-testid="lazy-column"] div[role="button"][componentkey]'
             ':has(button[aria-label$=" job"])'
         )
-        total = unclicked.count()
+        total = locator.count()
+        cards = [locator.nth(i) for i in range(total)]
         jobs = []
 
-        for i in range(total):                                                                                     
-            card = unclicked.first  
-
-        for i in range(total):
-            card = unclicked.first
-
+        for i, card in enumerate(cards):
             dismiss_label = (
                 card.locator('[aria-label^="Dismiss "]').first.get_attribute("aria-label") or ""
             )

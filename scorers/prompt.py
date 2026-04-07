@@ -25,7 +25,10 @@ For jobs that pass all rules, score them according to these criteria:
 
 ## Response format
 
-Respond with exactly one block per job, in order. Use this exact format with no deviation:
+Respond with exactly one block per job, in order. It is VERY important you use the exact same job number as the job you are evaluating.
+If the job number is 0 put 0 in your response. This is used to ensure your evaluation is associated with the correct job.
+
+Use this exact format with no deviation:
 
 For a filtered job:
 ```

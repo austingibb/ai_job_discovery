@@ -1,10 +1,11 @@
 import argparse
 from pathlib import Path
 
-from models import FailedResult, FilteredResult, JobListing, ScoredResult
-from config import _select_profile_dir, load_prefilter, load_profile, load_scorer_config
+from models import AIScorer, FailedResult, FilteredResult, JobListing, ScoredResult
+from config import _select_profile_dir, load_config, load_prefilter, load_profile, load_scorer_config
 from plugins.linkedin.linkedin import LinkedInPlugin
 from scorers.claude_browser.claude_browser import ClaudeBrowserScorer
+from scorers.ollama.ollama import OllamaScorer
 
 
 def scrape(profile_dir: Path) -> list[JobListing]:
@@ -18,13 +19,20 @@ def scrape(profile_dir: Path) -> list[JobListing]:
     return plugin.scrape()
 
 
+def _build_scorer(scorer_name: str) -> AIScorer:
+    scorer_config = load_scorer_config(scorer_name)
+    if scorer_name == "ollama":
+        return OllamaScorer(**scorer_config)
+    return ClaudeBrowserScorer(project_url=scorer_config.get("project_url"))
+
+
 def score(
     jobs: list[JobListing],
     profile_dir: Path,
+    scorer_name: str = "claude_browser",
 ) -> tuple[list[tuple[JobListing, ScoredResult]], list[tuple[JobListing, FilteredResult]], list[tuple[JobListing, FailedResult]]]:
     profile = load_profile(profile_dir)
-    scorer_config = load_scorer_config("claude_browser", profile_dir)
-    scorer = ClaudeBrowserScorer(project_url=scorer_config.get("project_url"))
+    scorer = _build_scorer(scorer_name)
 
     scored = []
     filtered = []
@@ -72,9 +80,10 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    config = load_config()
     profile_dir = _select_profile_dir()
     jobs = scrape(profile_dir)
-    ranked, filtered, failed = score(jobs, profile_dir)
+    ranked, filtered, failed = score(jobs, profile_dir, scorer_name=config["scorer"])
     report(ranked, filtered, failed, args.output)
 
 
