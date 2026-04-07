@@ -40,6 +40,8 @@ JOB_ID: <number>
 STATUS: SCORED
 SCORE: <integer 0-100>
 REASONING: <2-3 sentences explaining the score>
+HARD_REQUIREMENTS: <bullet list of the job's hard/must-have requirements, e.g. "- 5+ years Python experience | - Bachelor's in CS or related field". Use " | " to separate items. If none stated, write "None listed">
+PREFERRED_REQUIREMENTS: <bullet list of the job's preferred/nice-to-have requirements, e.g. "- Experience with Kubernetes | - Familiarity with ML pipelines". Use " | " to separate items. If none stated, write "None listed">
 ```
 
 Separate each block with a blank line. Do not include any other text before or after the blocks.\

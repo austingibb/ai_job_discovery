@@ -52,6 +52,10 @@ def report(
         lines.append(f"|---|-------|-----|------|")
         lines.append(f"| {rank} | {job.title} at {job.company} | {result.score}/100 | [View]({job.url}) |")
         lines.append(f"\n{result.reasoning}\n")
+        hard = "\n".join(r.strip() for r in result.hard_requirements.split("|"))
+        preferred = "\n".join(r.strip() for r in result.preferred_requirements.split("|"))
+        lines.append(f"**Hard Requirements:**\n{hard}\n")
+        lines.append(f"**Preferred Requirements:**\n{preferred}\n")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text("\n".join(lines))

@@ -28,6 +28,8 @@ class FilteredResult:
 class ScoredResult:
     score: int  # 0-100
     reasoning: str
+    hard_requirements: str
+    preferred_requirements: str
 
 
 @dataclass

@@ -2,7 +2,7 @@ import re
 
 from models import FilteredResult, JobListing, ScoredResult, ScoringError, ScoringResult
 
-_KNOWN_KEYS = {"JOB_ID", "STATUS", "REASON", "REASONING", "SCORE"}
+_KNOWN_KEYS = {"JOB_ID", "STATUS", "REASON", "REASONING", "SCORE", "HARD_REQUIREMENTS", "PREFERRED_REQUIREMENTS"}
 
 
 def _parse_block(block: str) -> dict[str, str]:
@@ -67,6 +67,8 @@ def parse_response(response: str, jobs: list[JobListing], start_index: int = 0) 
                 results[job_id] = ScoredResult(
                     score=int(fields["SCORE"]),
                     reasoning=fields["REASONING"],
+                    hard_requirements=fields.get("HARD_REQUIREMENTS", "None listed"),
+                    preferred_requirements=fields.get("PREFERRED_REQUIREMENTS", "None listed"),
                 )
             except KeyError as e:
                 raise ScoringError(
