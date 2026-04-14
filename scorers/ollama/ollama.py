@@ -16,6 +16,7 @@ class OllamaScorer:
         config.update({k: v for k, v in overrides.items() if v is not None})
         self.base_url: str = config["base_url"]
         self.model: str = config["model"]
+        self.api: str = config.get("api", "ollama")
         self.batch_size: int = config["batch_size"]
         self.timeout: int = config["timeout"]
 
@@ -41,6 +42,11 @@ class OllamaScorer:
         return results
 
     def _generate(self, prompt: str) -> str:
+        if self.api == "openai":
+            return self._generate_openai(prompt)
+        return self._generate_ollama(prompt)
+
+    def _generate_ollama(self, prompt: str) -> str:
         resp = requests.post(
             f"{self.base_url}/api/generate",
             json={
@@ -52,3 +58,16 @@ class OllamaScorer:
         )
         resp.raise_for_status()
         return resp.json()["response"]
+
+    def _generate_openai(self, prompt: str) -> str:
+        resp = requests.post(
+            f"{self.base_url}/v1/chat/completions",
+            json={
+                "model": self.model,
+                "messages": [{"role": "user", "content": prompt}],
+                "stream": False,
+            },
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"]

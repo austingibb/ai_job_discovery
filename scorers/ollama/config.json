@@ -1,6 +1,7 @@
 {
-  "base_url": "http://localhost:11434",
-  "model": "gemma4:31b",
+  "base_url": "http://192.168.0.103:8080",
+  "model": "gemma-4-31B-it-UD-Q3_K_XL",
+  "api": "openai",
   "batch_size": 1,
   "timeout": 120
 }

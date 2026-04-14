@@ -1,16 +1,23 @@
 import argparse
 from pathlib import Path
 
-from models import AIScorer, FailedResult, FilteredResult, JobListing, ScoredResult
+from models import AIScorer, FailedResult, FilteredResult, JobBoardPlugin, JobListing, ScoredResult
 from config import _select_profile_dir, load_config, load_prefilter, load_profile, load_scorer_config
 from plugins.linkedin.linkedin import LinkedInPlugin
+from plugins.indeed.indeed import IndeedPlugin
 from scorers.claude_browser.claude_browser import ClaudeBrowserScorer
 from scorers.ollama.ollama import OllamaScorer
 
+PLUGINS: dict[str, type] = {
+    "linkedin": LinkedInPlugin,
+    "indeed": IndeedPlugin,
+}
 
-def scrape(profile_dir: Path) -> list[JobListing]:
+
+def scrape(profile_dir: Path, plugin_name: str = "linkedin") -> list[JobListing]:
     prefilter = load_prefilter(profile_dir)
-    plugin = LinkedInPlugin(
+    plugin_cls = PLUGINS[plugin_name]
+    plugin = plugin_cls(
         exclude_companies=prefilter["exclude_companies"],
         exclude_title_keywords=prefilter["exclude_title_keywords"],
         filter_reposts=prefilter.get("filter_reposts", False),
@@ -82,7 +89,7 @@ def main() -> None:
 
     config = load_config()
     profile_dir = _select_profile_dir()
-    jobs = scrape(profile_dir)
+    jobs = scrape(profile_dir, plugin_name=config.get("plugin", "linkedin"))
     ranked, filtered, failed = score(jobs, profile_dir, scorer_name=config["scorer"])
     report(ranked, filtered, failed, args.output)
 
