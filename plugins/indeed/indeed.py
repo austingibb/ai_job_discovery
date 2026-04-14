@@ -75,6 +75,10 @@ class IndeedPlugin:
         print(f"Prefilter: {len(stubs) - len(kept)} dropped, {len(kept)} remaining.")
         return kept
 
+    @staticmethod
+    def _is_cloudflare_challenge(page: Page) -> bool:
+        return page.locator("#heading").filter(has_text="Additional Verification Required").count() > 0
+
     def _scrape_all_pages(self, page: Page) -> list[JobListing]:
         """Scrape jobs across num_pages pages, clicking Next between each."""
         print(f"Scraping page 1 of {self.num_pages}...")
@@ -88,7 +92,10 @@ class IndeedPlugin:
                 break
             next_btn.click()
             page.wait_for_load_state("domcontentloaded")
-            page.wait_for_timeout(2000)
+            page.wait_for_timeout(3000)
+            if self._is_cloudflare_challenge(page):
+                input("\nCloudflare verification required. Complete the challenge in the browser, then press Enter to continue...")
+                page.wait_for_timeout(2000)
             print(f"Scraping page {pg} of {self.num_pages}...")
             new_jobs = self._scrape_jobs(page)
             print(f"  Found {len(new_jobs)} jobs.")
@@ -98,87 +105,87 @@ class IndeedPlugin:
         return jobs
 
     def _scrape_jobs(self, page: Page) -> list[JobListing]:
-        """Scrape job listings from the current Indeed search results page.
-
-        Clicks each job card to load the description in the right pane,
-        then extracts metadata and the full job description.
-        """
-        # Indeed job cards are <div> elements with class "cardOutline" and "result"
-        # that also have an id starting with "job_" or contain a data-jk attribute.
-        # We target the clickable job title links within the card list.
+        """Scrape job stubs from the current search results page, then open
+        each job in a new tab to reliably get the full description."""
         card_locator = page.locator(
             '#mosaic-provider-jobcards .result .jobTitle a.jcs-JobTitle'
         )
         total = card_locator.count()
-        jobs = []
+        stubs: list[dict] = []
         seen_keys: set[str] = set()
 
+        # Phase 1: collect metadata from the card list (no clicking).
         for i in range(total):
             card = card_locator.nth(i)
 
-            # Skip hidden duplicate cards (aria-hidden="true" on ancestor .cardOutline).
-            card_outline = card.locator("xpath=ancestor::div[contains(@class, 'cardOutline')]").first
-            if card_outline.get_attribute("aria-hidden") == "true":
+            try:
+                card_outline = card.locator("xpath=ancestor::div[contains(@class, 'cardOutline')]").first
+                if card_outline.get_attribute("aria-hidden", timeout=3_000) == "true":
+                    continue
+            except Exception:
+                pass
+
+            try:
+                jk = card.get_attribute("data-jk", timeout=3_000) or ""
+            except Exception as e:
+                print(f"  [{i + 1}/{total}] Skipping (failed to get job key: {e})")
                 continue
-
-            # Deduplicate by job key.
-            jk = card.get_attribute("data-jk") or ""
-            if jk and jk in seen_keys:
+            if not jk:
+                print(f"  [{i + 1}/{total}] Skipping (no job key)")
                 continue
-            if jk:
-                seen_keys.add(jk)
+            if jk in seen_keys:
+                continue
+            seen_keys.add(jk)
 
-            # Extract title from the span within the link.
-            title = card.locator("span").first.inner_text().strip()
-
-            # Navigate up to the result container to get company/location/salary.
-            # The result container is the ancestor with class "result".
+            title = card.locator("span").first.inner_text(timeout=3_000).strip()
             result_container = card.locator("xpath=ancestor::div[contains(@class, 'result')]").first
 
             company = ""
             try:
-                company = result_container.locator('[data-testid="company-name"]').first.inner_text().strip()
+                company = result_container.locator('[data-testid="company-name"]').first.inner_text(timeout=3_000).strip()
             except Exception:
                 pass
 
             location = ""
             try:
-                location = result_container.locator('[data-testid="text-location"]').first.inner_text().strip()
+                location = result_container.locator('[data-testid="text-location"]').first.inner_text(timeout=3_000).strip()
             except Exception:
                 pass
 
-            # Click the card to load the job description in the right pane.
-            card.click()
-            page.wait_for_timeout(1500)
+            stubs.append({"jk": jk, "title": title, "company": company, "location": location})
 
-            # Extract the job URL. Indeed updates the URL or we can read it from
-            # the data-jk attribute on the card link.
-            job_key = card.get_attribute("data-jk") or ""
-            if job_key:
-                url = f"https://www.indeed.com/viewjob?jk={job_key}"
-            else:
-                url = page.url
+        print(f"  Collected {len(stubs)} stubs, fetching descriptions...")
 
-            date_posted = ""
-
-            # Read the full job description from the right-side detail pane.
-            description = ""
-            desc_locator = page.locator('#jobDescriptionText')
+        # Phase 2: open each job in a new tab to get the description.
+        context = page.context
+        jobs: list[JobListing] = []
+        for idx, stub in enumerate(stubs, start=1):
+            url = f"https://www.indeed.com/viewjob?jk={stub['jk']}"
+            tab = context.new_page()
             try:
-                desc_locator.wait_for(state="visible", timeout=5_000)
-                description = desc_locator.inner_text()
-            except Exception:
-                pass
+                tab.goto(url)
+                tab.wait_for_load_state("domcontentloaded")
+                if self._is_cloudflare_challenge(tab):
+                    input(f"\nCloudflare verification required on tab for {stub['title']}. Complete the challenge, then press Enter...")
+                    tab.wait_for_timeout(2000)
+                desc_locator = tab.locator('#jobDescriptionText')
+                desc_locator.wait_for(state="visible", timeout=10_000)
+                description = desc_locator.inner_text(timeout=10_000)
+            except Exception as e:
+                print(f"  [{idx}/{len(stubs)}] Skipping {stub['title']} @ {stub['company']} (failed to get description: {e})")
+                tab.close()
+                continue
+            finally:
+                tab.close()
 
-            print(f"  [{i + 1}/{total}] {title} @ {company}")
-
+            print(f"  [{idx}/{len(stubs)}] {stub['title']} @ {stub['company']}")
             jobs.append(
                 JobListing(
-                    title=title,
-                    company=company,
-                    location=location,
+                    title=stub["title"],
+                    company=stub["company"],
+                    location=stub["location"],
                     url=url,
-                    date_posted=date_posted,
+                    date_posted="",
                     description=description,
                 )
             )

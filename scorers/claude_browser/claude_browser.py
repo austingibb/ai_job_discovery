@@ -29,7 +29,7 @@ class ClaudeBrowserScorer:
 
             try:
                 page.goto(self.project_url)
-                page.wait_for_load_state("networkidle")
+                page.wait_for_load_state("domcontentloaded")
 
                 for i in range(0, len(jobs), self.batch_size):
                     batch = jobs[i : i + self.batch_size]
