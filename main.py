@@ -5,12 +5,14 @@ from models import AIScorer, FailedResult, FilteredResult, JobBoardPlugin, JobLi
 from config import _select_profile_dir, load_config, load_prefilter, load_profile, load_scorer_config
 from plugins.linkedin.linkedin import LinkedInPlugin
 from plugins.indeed.indeed import IndeedPlugin
+from plugins.hiring_cafe.hiring_cafe import HiringCafePlugin
 from scorers.claude_browser.claude_browser import ClaudeBrowserScorer
 from scorers.ollama.ollama import OllamaScorer
 
 PLUGINS: dict[str, type] = {
     "linkedin": LinkedInPlugin,
     "indeed": IndeedPlugin,
+    "hiring_cafe": HiringCafePlugin,
 }
 
 
