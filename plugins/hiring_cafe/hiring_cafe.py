@@ -74,29 +74,34 @@ class HiringCafePlugin:
         return kept
 
     def _scrape_all_pages(self, page: Page) -> list[JobListing]:
-        """Scrape jobs, scrolling to load more results."""
+        """Scrape jobs, navigating through pagination buttons."""
         print(f"Scraping page 1 of {self.num_pages}...")
         jobs = self._scrape_jobs(page)
         print(f"  Found {len(jobs)} jobs.")
 
         for pg in range(2, self.num_pages + 1):
-            # Hiring.cafe uses infinite scroll; scroll to bottom to load more.
-            prev_count = page.locator('a[href^="/viewjob/"]').count()
-            page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-            page.wait_for_timeout(3000)
-            new_count = page.locator('a[href^="/viewjob/"]').count()
-            if new_count <= prev_count:
-                print("  No more results to load.")
+            try:
+                next_btn = page.locator('a[aria-label="Next page"]')
+                if next_btn.count() == 0 or not next_btn.is_visible():
+                    print("  No more pages available.")
+                    break
+                
+                next_btn.click()
+                page.wait_for_load_state("domcontentloaded")
+                page.wait_for_timeout(2000)
+                
+                print(f"Scraping page {pg} of {self.num_pages}...")
+                new_jobs = self._scrape_jobs(page)
+                print(f"  Found {len(new_jobs)} new jobs.")
+                jobs.extend(new_jobs)
+            except Exception as e:
+                print(f"  [error] Failed to navigate to page {pg}: {e}")
                 break
-            print(f"Scraping page {pg} of {self.num_pages}...")
-            new_jobs = self._scrape_jobs(page, offset=prev_count)
-            print(f"  Found {len(new_jobs)} new jobs.")
-            jobs.extend(new_jobs)
 
         print(f"Total jobs collected: {len(jobs)}")
         return jobs
 
-    def _scrape_jobs(self, page: Page, offset: int = 0) -> list[JobListing]:
+    def _scrape_jobs(self, page: Page) -> list[JobListing]:
         """Collect stubs from the card grid, then open each job in a new tab
         to get the full description."""
 
@@ -107,7 +112,7 @@ class HiringCafePlugin:
         stubs: list[dict] = []
         seen_urls: set[str] = set()
 
-        for i in range(offset, total):
+        for i in range(total):
             card = cards.nth(i)
 
             viewjob_link = card.locator('a[href^="/viewjob/"]')
