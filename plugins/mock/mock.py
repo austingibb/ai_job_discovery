@@ -2,6 +2,15 @@ from models import JobListing
 
 
 class MockPlugin:
+    def __init__(
+        self,
+        exclude_companies: list[str] | None = None,
+        exclude_title_keywords: list[str] | None = None,
+        filter_reposts: bool = False,
+        max_age_days: int | None = None,
+    ) -> None:
+        pass
+
     def scrape(self) -> list[JobListing]:
         return [
             JobListing(
