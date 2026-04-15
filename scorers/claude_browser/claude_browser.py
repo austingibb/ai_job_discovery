@@ -27,6 +27,7 @@ class ClaudeBrowserScorer:
         self.project_url: str = project_url or config["default_url"]
         self.batch_size: int = config["batch_size"]
         self.concurrency: int = config.get("concurrency", 1)
+        self.cleanup_chat: bool = config.get("cleanup_chat", False)
 
     def score(self, profile: UserProfile, jobs: list[JobListing]) -> list[ScoringResult]:
         return asyncio.run(self._score_async(profile, jobs))
@@ -87,6 +88,7 @@ class ClaudeBrowserScorer:
     ) -> dict[int, ScoringResult]:
         page = await context.new_page()
         results: dict[int, ScoringResult] = {}
+        chat_created = False
 
         try:
             await page.goto(self.project_url)
@@ -102,6 +104,7 @@ class ClaudeBrowserScorer:
 
                 try:
                     response = await self._send_message(page, prompt)
+                    chat_created = True
                     parsed = parse_response(response, batch, start_index=i)
                     for job_idx, res in zip(range(i, i + len(batch)), parsed):
                         results[job_idx] = res
@@ -111,6 +114,9 @@ class ClaudeBrowserScorer:
                         results[job_idx] = FailedResult(reason=str(e))
                 finally:
                     progress.increment(len(batch))
+            
+            if self.cleanup_chat and chat_created:
+                await self._delete_current_chat(page)
         finally:
             await page.close()
 
@@ -147,3 +153,33 @@ class ClaudeBrowserScorer:
 
         responses = page.locator('.standard-markdown')
         return await responses.last.inner_text()
+
+    async def _delete_current_chat(self, page: Page):
+        try:
+            # 1. Ensure the sidebar is open
+            sidebar_toggle = page.locator('[data-testid="pin-sidebar-toggle"]').first
+            if await sidebar_toggle.is_visible():
+                is_pressed = await sidebar_toggle.get_attribute("aria-pressed")
+                if is_pressed == "false":
+                    await sidebar_toggle.click()
+                    await page.wait_for_timeout(500)
+
+            # 2. Click the "More options" button for the active chat
+            # The active chat is marked with aria-current="page"
+            more_options_btn = page.locator('li:has(a[aria-current="page"]) button[aria-label*="More options"]').first
+            await more_options_btn.wait_for(state="visible", timeout=10000)
+            await more_options_btn.click()
+
+            # 3. Click the "Delete" option in the menu
+            delete_option = page.locator('[data-testid="delete-chat-trigger"]').first
+            await delete_option.wait_for(state="visible", timeout=10000)
+            await delete_option.click()
+
+            # 4. Click the "Delete" confirmation button
+            confirm_btn = page.locator('[data-testid="delete-modal-confirm"]').first
+            await confirm_btn.wait_for(state="visible", timeout=10000)
+            await confirm_btn.click()
+            
+            print("Successfully deleted the chat.")
+        except Exception as e:
+            print(f"Failed to delete the chat: {e}")

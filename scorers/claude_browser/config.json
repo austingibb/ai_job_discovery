@@ -2,5 +2,6 @@
   "cdp_url": "http://localhost:9222",
   "default_url": "https://claude.ai/new",
   "batch_size": 2,
-  "concurrency": 2
+  "concurrency": 2,
+  "cleanup_chat": true
 }
