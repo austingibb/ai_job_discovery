@@ -6,6 +6,7 @@ from config import _select_profile_dir, load_config, load_prefilter, load_profil
 from plugins.linkedin.linkedin import LinkedInPlugin
 from plugins.indeed.indeed import IndeedPlugin
 from plugins.hiring_cafe.hiring_cafe import HiringCafePlugin
+from plugins.remotive.remotive import RemotivePlugin
 from plugins.mock.mock import MockPlugin
 from scorers.claude_browser.claude_browser import ClaudeBrowserScorer
 from scorers.ollama.ollama import OllamaScorer
@@ -14,6 +15,7 @@ PLUGINS: dict[str, type] = {
     "linkedin": LinkedInPlugin,
     "indeed": IndeedPlugin,
     "hiring_cafe": HiringCafePlugin,
+    "remotive": RemotivePlugin,
     "mock": MockPlugin
 }
 
