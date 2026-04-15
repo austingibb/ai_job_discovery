@@ -1,4 +1,5 @@
 import argparse
+from datetime import datetime
 from pathlib import Path
 
 from models import AIScorer, FailedResult, FilteredResult, JobBoardPlugin, JobListing, ScoredResult
@@ -97,7 +98,14 @@ def main() -> None:
     profile_dir = _select_profile_dir()
     jobs = scrape(profile_dir, plugin_name=config.get("plugin", "linkedin"))
     ranked, filtered, failed = score(jobs, profile_dir, scorer_name=config["scorer"])
-    report(ranked, filtered, failed, args.output)
+    
+    # Append today's date to the report name
+    date_str = datetime.now().strftime("%Y_%m_%d")
+    output_path = args.output
+    if output_path.suffix == ".md":
+        output_path = output_path.with_name(f"{output_path.stem}_{date_str}{output_path.suffix}")
+        
+    report(ranked, filtered, failed, output_path)
 
 
 if __name__ == "__main__":
