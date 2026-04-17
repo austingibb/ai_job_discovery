@@ -48,6 +48,8 @@ PREFERRED_REQUIREMENTS: <bullet list of the job's preferred/nice-to-have require
 ```
 
 Separate each block with a blank line. Do not include any other text before or after the blocks.\
+Feel free to rethink your decisions if you realise you could better evaluate a job (or rule). 
+As long as you follow the formatting above and add an empty line between each block re-doing a job_id is acceptable. 
 """
 
 

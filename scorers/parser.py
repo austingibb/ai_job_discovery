@@ -9,18 +9,37 @@ def _parse_block(block: str) -> dict[str, str]:
     """Parse a single response block into a key/value dict.
 
     Handles multi-line values (e.g. REASONING spanning multiple sentences)
-    by appending continuation lines to the last known key.
+    by appending continuation lines to the last known key. Any blank line
+    followed by a non-key line is treated as trailing thought text and
+    truncated — this prevents LLM thinking/reasoning between fields from
+    contaminating the parsed values.
     """
     fields: dict[str, str] = {}
     current_key: str | None = None
+    saw_blank = False
 
     for line in block.splitlines():
         key, sep, value = line.partition(": ")
         if sep and key.strip() in _KNOWN_KEYS:
             current_key = key.strip()
             fields[current_key] = value.strip()
-        elif current_key is not None and line.strip():
-            fields[current_key] += " " + line.strip()
+            saw_blank = False
+            continue
+
+        stripped = line.strip()
+
+        # Blank line followed by a non-key line = trailing thought text
+        if saw_blank and current_key is not None:
+            current_key = None
+            saw_blank = False
+            continue
+
+        if not stripped:
+            saw_blank = True
+            continue
+
+        if current_key is not None:
+            fields[current_key] += " " + stripped
 
     return fields
 
@@ -40,12 +59,7 @@ def parse_response(response: str, jobs: list[JobListing], start_index: int = 0) 
     raw_blocks = re.split(r"(?=^JOB_ID:)", response, flags=re.MULTILINE)
     blocks = [b.strip() for b in raw_blocks if b.strip()]
 
-    if len(blocks) != len(jobs):
-        raise ScoringError(
-            f"Expected {len(jobs)} result blocks, got {len(blocks)}",
-            raw_response=response,
-        )
-
+    expected_ids = set(start_index + i for i in range(len(jobs)))
     results: dict[int, ScoringResult] = {}
 
     for block in blocks:
@@ -87,9 +101,10 @@ def parse_response(response: str, jobs: list[JobListing], start_index: int = 0) 
                 raw_response=response,
             )
 
-    if len(results) != len(jobs):
+    missing = expected_ids - set(results.keys())
+    if missing:
         raise ScoringError(
-            "Duplicate JOB_IDs in response",
+            f"Missing results for job IDs: {sorted(missing)}",
             raw_response=response,
         )
 
