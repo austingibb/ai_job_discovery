@@ -11,6 +11,7 @@ from plugins.remotive.remotive import RemotivePlugin
 from plugins.mock.mock import MockPlugin
 from scorers.claude_browser.claude_browser import ClaudeBrowserScorer
 from scorers.ollama.ollama import OllamaScorer
+from scorers.mock.mock import MockScorer
 
 PLUGINS: dict[str, type] = {
     "linkedin": LinkedInPlugin,
@@ -96,14 +97,16 @@ def main() -> None:
 
     config = load_config()
     profile_dir = _select_profile_dir()
-    jobs = scrape(profile_dir, plugin_name=config.get("plugin", "linkedin"))
+    plugin_name = config.get("plugin", "linkedin")
+    jobs = scrape(profile_dir, plugin_name=plugin_name)
     ranked, filtered, failed = score(jobs, profile_dir, scorer_name=config["scorer"])
     
-    # Append today's date to the report name
+    # Append plugin, profile name and today's date to the report name
     date_str = datetime.now().strftime("%Y_%m_%d")
+    profile_name = profile_dir.name
     output_path = args.output
     if output_path.suffix == ".md":
-        output_path = output_path.with_name(f"{output_path.stem}_{date_str}{output_path.suffix}")
+        output_path = output_path.with_name(f"{output_path.stem}_{plugin_name}_{profile_name}_{date_str}{output_path.suffix}")
         
     report(ranked, filtered, failed, output_path)
 
