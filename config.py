@@ -53,3 +53,16 @@ def load_scorer_config(name: str) -> dict:
     if scorer_path.exists():
         return json.loads(scorer_path.read_text())
     return {}
+
+
+def load_dedup_config() -> dict:
+    config_path = _CONFIG_DIR / "config.json"
+    data = json.loads(config_path.read_text())
+    dedup = data.get("dedup", {})
+    defaults = {
+        "company_threshold": 50,
+        "title_threshold": 80,
+        "description_threshold": 80,
+    }
+    defaults.update(dedup)
+    return defaults

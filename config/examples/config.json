@@ -1,3 +1,9 @@
 {
-  "scorer": "claude_browser"
+  "plugin": "hiring_cafe",
+  "scorer": "claude_browser",
+  "dedup": {
+    "company_threshold": 50,
+    "title_threshold": 80,
+    "description_threshold": 85
+  }
 }

@@ -12,3 +12,6 @@ output/
 /bin
 /obj
 *.log
+
+# Dedup store
+data/
