@@ -121,21 +121,20 @@ def main() -> None:
         print(f"Dedup: {dedup_count} duplicates removed, {len(new_jobs_to_score)} new jobs to score ({elapsed:.2f}s)")
 
     ranked, filtered, failed = score(new_jobs_to_score, profile_dir, scorer_name=config["scorer"])
-    
+
     # Append plugin, profile name and today's date to the report name
     date_str = datetime.now().strftime("%Y_%m_%d")
     profile_name = profile_dir.name
     output_path = args.output
     if output_path.suffix == ".md":
         output_path = output_path.with_name(f"{output_path.stem}_{plugin_name}_{profile_name}_{date_str}{output_path.suffix}")
-        
+
     report(ranked, filtered, failed, output_path, dedup_count)
 
     # Commit scored and filtered jobs to store (not failed — they may succeed next run)
     if not args.no_dedup:
-        commit_jobs = [job for job, _ in ranked] + [job for job, _ in filtered]
-        store.commit(commit_jobs)
-        print(f"Dedup: committed {len(commit_jobs)} jobs to store")
+        store.commit(ranked, filtered, config["scorer"])
+        print(f"Dedup: committed {len(ranked) + len(filtered)} jobs to store")
 
 
 if __name__ == "__main__":

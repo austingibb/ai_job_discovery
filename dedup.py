@@ -5,7 +5,7 @@ from datetime import date
 from pathlib import Path
 from rapidfuzz import fuzz
 
-from models import JobListing
+from models import FilteredResult, JobListing, ScoredResult
 
 
 DEFAULT_STORE_PATH = Path("data/seen_jobs.json")
@@ -146,16 +146,26 @@ class DedupStore:
         elapsed = time.perf_counter() - start
         return new_jobs, duplicate_jobs, elapsed
 
-    def commit(self, jobs: list[JobListing]) -> None:
-        """Add jobs to the persistent store.
+    def commit(
+        self,
+        scored: list[tuple[JobListing, ScoredResult]],
+        filtered: list[tuple[JobListing, FilteredResult]],
+        scorer_name: str,
+    ) -> None:
+        """Add scored and filtered jobs to the persistent store.
 
         Called after scoring completes so that only successfully scored or
         filtered jobs are stored as "seen". Failed jobs (scorer crashes, etc.)
         are not committed because they may succeed on the next run.
+
+        Args:
+            scored: list of (JobListing, ScoredResult) tuples
+            filtered: list of (JobListing, FilteredResult) tuples
+            scorer_name: name of the scorer used for scoring
         """
         store = self.load()
 
-        for job in jobs:
+        for job, result in scored:
             fingerprint = f"{normalize_company(job.company)}|{normalize_title(job.title)}"
             store_key = fingerprint
             counter = 2
@@ -166,9 +176,29 @@ class DedupStore:
                 "company": job.company,
                 "title": job.title,
                 "url": job.url,
-                "source": None,
+                "scorer": scorer_name,
                 "first_seen": date.today().isoformat(),
-                "description": job.description,
+                "scoring_result_type": "scored",
+                "result_reason": result.reasoning,
+                "score": result.score,
+            }
+
+        for job, result in filtered:
+            fingerprint = f"{normalize_company(job.company)}|{normalize_title(job.title)}"
+            store_key = fingerprint
+            counter = 2
+            while store_key in store:
+                store_key = f"{fingerprint}#{counter}"
+                counter += 1
+            store[store_key] = {
+                "company": job.company,
+                "title": job.title,
+                "url": job.url,
+                "scorer": scorer_name,
+                "first_seen": date.today().isoformat(),
+                "scoring_result_type": "filtered",
+                "result_reason": result.reason,
+                "score": -1,
             }
 
         self.save(store)
