@@ -182,15 +182,22 @@ class HiringCafePlugin:
                 tab.goto(stub["url"])
                 tab.wait_for_load_state("domcontentloaded")
 
-                # Extract the external job posting URL from embedded Next.js data.
+                # Extract the external job posting URL and company from embedded Next.js data.
                 page_content = tab.content()
                 next_data_match = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', page_content, re.DOTALL)
                 if next_data_match:
                     try:
                         next_data = json.loads(next_data_match.group(1))
-                        apply_url = next_data.get("props", {}).get("pageProps", {}).get("job", {}).get("apply_url")
+                        job_data = next_data.get("props", {}).get("pageProps", {}).get("job", {})
+                        apply_url = job_data.get("apply_url")
                         if apply_url and apply_url.startswith("http"):
                             stub["url"] = apply_url
+                        if not stub["company"].strip():
+                            v5_data = job_data.get("v5_processed_job_data", {})
+                            enriched = job_data.get("enriched_company_data", {})
+                            company = v5_data.get("company_name") or enriched.get("name")
+                            if company:
+                                stub["company"] = company.strip()
                     except json.JSONDecodeError:
                         pass
 
