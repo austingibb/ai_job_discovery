@@ -30,7 +30,6 @@ class HiringCafePlugin:
         with sync_playwright() as p:
             browser = p.chromium.connect_over_cdp(self.cdp_url)
             page = browser.contexts[0].new_page()
-            page.set_viewport_size({"width": 1920, "height": 1080})
 
             try:
                 page.goto("https://hiring.cafe/")
