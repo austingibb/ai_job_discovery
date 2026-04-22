@@ -2,7 +2,7 @@ import re
 
 from models import FilteredResult, JobListing, ScoredResult, ScoringError, ScoringResult
 
-_KNOWN_KEYS = {"JOB_ID", "STATUS", "REASON", "REASONING", "SCORE", "HARD_REQUIREMENTS", "PREFERRED_REQUIREMENTS"}
+_KNOWN_KEYS = {"JOB_ID", "STATUS", "REASON", "REASONING", "SCORE", "REQS_MATCH", "DOMAIN_MATCH", "GAPS", "HARD_REQUIREMENTS", "PREFERRED_REQUIREMENTS"}
 
 
 def _parse_block(block: str) -> dict[str, str]:
@@ -86,7 +86,10 @@ def parse_response(response: str, jobs: list[JobListing], start_index: int = 0) 
             try:
                 results[job_id] = ScoredResult(
                     score=int(fields["SCORE"]),
+                    requirements_match=int(fields.get("REQS_MATCH", "0")),
+                    domain_match=int(fields.get("DOMAIN_MATCH", "0")),
                     reasoning=fields["REASONING"],
+                    gaps=fields.get("GAPS", "No significant gaps identified"),
                     hard_requirements=fields.get("HARD_REQUIREMENTS", "None listed"),
                     preferred_requirements=fields.get("PREFERRED_REQUIREMENTS", "None listed"),
                 )

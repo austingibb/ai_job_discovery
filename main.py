@@ -63,6 +63,10 @@ def score(
     return sorted(scored, key=lambda x: x[1].score, reverse=True), filtered, failed
 
 
+def _escape_md_pipe(text: str) -> str:
+    return text.replace("|", "&#124;")
+
+
 def report(
     ranked: list[tuple[JobListing, ScoredResult]],
     filtered: list[tuple[JobListing, FilteredResult]],
@@ -75,8 +79,11 @@ def report(
         lines.append("---\n")
         lines.append(f"| # | Title | Fit | Link |")
         lines.append(f"|---|-------|-----|------|")
-        lines.append(f"| {rank} | {job.title} at {job.company} | {result.score}/100 | [View]({job.url}) |")
-        lines.append(f"\n{result.reasoning}\n")
+        lines.append(f"| {rank} | {_escape_md_pipe(job.title)} at {_escape_md_pipe(job.company)} | {result.score}/100 | [View]({job.url}) |")
+        lines.append(f"\n**Requirements Match:** {result.requirements_match}/100")
+        lines.append(f"**Domain Match:** {result.domain_match}/100\n")
+        lines.append(f"{result.reasoning}\n")
+        lines.append(f"**Gaps:** {result.gaps}\n")
         hard = "\n".join(r.strip() for r in result.hard_requirements.split("|"))
         preferred = "\n".join(r.strip() for r in result.preferred_requirements.split("|"))
         lines.append(f"**Hard Requirements:**\n{hard}\n")

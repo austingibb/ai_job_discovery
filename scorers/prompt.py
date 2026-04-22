@@ -15,7 +15,9 @@ Apply these rules first. If a job violates any rule, filter it out immediately. 
 
 ## Fit criteria (scoring instructions)
 
-For jobs that pass all rules, score them according to these criteria:
+For jobs that pass all rules, score them according to these criteria. When determining the overall score, consider these two dimensions:
+1. Requirements match: How well does the candidate's skills and experience align with the job's hard and preferred requirements?
+2. Domain match: How well does the candidate's industry and domain experience align with the company's field?
 
 {fit_criteria}
 
@@ -42,7 +44,10 @@ For a scored job:
 JOB_ID: <number>
 STATUS: SCORED
 SCORE: <integer 0-100>
-REASONING: <2-3 sentences explaining the score>
+REQS_MATCH: <integer 0-100, how well candidate's skills/experience align with job requirements>
+DOMAIN_MATCH: <integer 0-100, how well candidate's industry/domain experience aligns with the company's field>
+REASONING: <2-6 sentences explaining the score. Explain the requirements match and domain match scores as well. Cite specific experience from the candidate's background that matches or mismatches the job requirements.>
+GAPS: <1-2 brief sentences describing where the candidate's CV falls short for this job posting. If no significant gaps, write "No significant gaps identified">
 HARD_REQUIREMENTS: <bullet list of the job's hard/must-have requirements, e.g. "- 5+ years Python experience | - Bachelor's in CS or related field". Use " | " to separate items. If none stated, write "None listed">
 PREFERRED_REQUIREMENTS: <bullet list of the job's preferred/nice-to-have requirements, e.g. "- Experience with Kubernetes | - Familiarity with ML pipelines". Use " | " to separate items. If none stated, write "None listed">
 ```

@@ -182,6 +182,9 @@ class DedupStore:
                 "scoring_result_type": "scored",
                 "result_reason": result.reasoning,
                 "score": result.score,
+                "requirements_match": result.requirements_match,
+                "domain_match": result.domain_match,
+                "gaps": result.gaps,
             }
 
         for job, result in filtered:

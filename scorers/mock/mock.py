@@ -5,7 +5,10 @@ _HARDCODED_RESPONSE = """\
 JOB_ID: 0
 STATUS: SCORED
 SCORE: 95
+REQS_MATCH: 95
+DOMAIN_MATCH: 90
 REASONING: Strong match. The role is a React/TypeScript frontend position building customer-facing dashboards — closely aligned with the candidate's agency and e-commerce experience. The 1-3 year requirement fits well and the Next.js stack is a direct overlap.
+GAPS: No significant gaps identified
 HARD_REQUIREMENTS: - 1-3 years React/TypeScript experience | - Bachelor's in CS or related field
 PREFERRED_REQUIREMENTS: - Next.js experience | - E-commerce domain knowledge
 
@@ -26,14 +29,20 @@ REASON: Rule 3 — this is a pure DevOps/SRE role with no frontend component.
 JOB_ID: 3
 STATUS: SCORED
 SCORE: 35
+REQS_MATCH: 30
+DOMAIN_MATCH: 40
 REASONING: The role is primarily backend microservices in Go with only a thin React admin panel. The candidate's backend exposure is limited to non-production Node.js work, making this a stretch.
+GAPS: Lacks Go experience and microservices architecture background. No Kubernetes or production backend experience.
 HARD_REQUIREMENTS: - 3+ years Go experience | - Microservices architecture experience
 PREFERRED_REQUIREMENTS: - React experience | - Kubernetes familiarity
 
 JOB_ID: 4
 STATUS: SCORED
 SCORE: 88
+REQS_MATCH: 85
+DOMAIN_MATCH: 92
 REASONING: Full-stack role but heavily frontend-leaning. React and TypeScript are the primary technologies, with light Express API work that matches the candidate's existing Node.js exposure. The e-commerce domain aligns with prior ShopLocal experience.
+GAPS: Limited Express.js experience; e-commerce knowledge is from agency work rather than dedicated platform roles.
 HARD_REQUIREMENTS: - 2+ years React and TypeScript | - Experience with REST APIs
 PREFERRED_REQUIREMENTS: - E-commerce experience | - Express.js knowledge\
 """
