@@ -1,5 +1,4 @@
 import argparse
-import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -95,11 +94,6 @@ def report(
     output_path.write_text("\n".join(lines))
     print(f"Report written to {output_path}")
 
-
-def _sanitize_filename(name: str) -> str:
-    return re.sub(r"[^\w\-. ]", "", name).strip()
-
-
 def _print_score_result(job: JobListing, result: ScoredResult) -> None:
     print(f"\n{'=' * 60}")
     print(f"  {job.title} at {job.company}")
@@ -130,9 +124,6 @@ def _print_failed_result(job: JobListing, result: FailedResult) -> None:
     print(f"{'=' * 60}")
     print(f"  Scoring failed: {result.reason}")
     print()
-
-
-
 
 def interactive_job_loop(profile_dir: Path, scorer_name: str, output_dir: Path) -> None:
     print("\n=== Interactive Job Scorer ===")
