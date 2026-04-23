@@ -10,7 +10,7 @@ from scorers.prompt import build_prompt
 _CONFIG_PATH = Path(__file__).parent / "config.json"
 
 
-class OllamaScorer:
+class LlamaScorer:
     def __init__(self, **overrides: object) -> None:
         config = json.loads(_CONFIG_PATH.read_text())
         config.update({k: v for k, v in overrides.items() if v is not None})

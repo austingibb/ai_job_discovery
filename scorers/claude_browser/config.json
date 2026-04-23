@@ -3,5 +3,5 @@
   "default_url": "https://claude.ai/new",
   "batch_size": 2,
   "concurrency": 2,
-  "cleanup_chat": true
+  "cleanup_chat": false
 }

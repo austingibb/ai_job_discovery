@@ -1,4 +1,6 @@
 import argparse
+import re
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -11,7 +13,7 @@ from plugins.hiring_cafe.hiring_cafe import HiringCafePlugin
 from plugins.remotive.remotive import RemotivePlugin
 from plugins.mock.mock import MockPlugin
 from scorers.claude_browser.claude_browser import ClaudeBrowserScorer
-from scorers.ollama.ollama import OllamaScorer
+from scorers.llama.llama import LlamaScorer
 from scorers.mock.mock import MockScorer
 
 PLUGINS: dict[str, type] = {
@@ -37,8 +39,8 @@ def scrape(profile_dir: Path, plugin_name: str = "linkedin") -> list[JobListing]
 
 def _build_scorer(scorer_name: str) -> AIScorer:
     scorer_config = load_scorer_config(scorer_name)
-    if scorer_name == "ollama":
-        return OllamaScorer(**scorer_config)
+    if scorer_name == "llama":
+        return LlamaScorer(**scorer_config)
     return ClaudeBrowserScorer(project_url=scorer_config.get("project_url"))
 
 
@@ -94,6 +96,115 @@ def report(
     print(f"Report written to {output_path}")
 
 
+def _sanitize_filename(name: str) -> str:
+    return re.sub(r"[^\w\-. ]", "", name).strip()
+
+
+def _print_score_result(job: JobListing, result: ScoredResult) -> None:
+    print(f"\n{'=' * 60}")
+    print(f"  {job.title} at {job.company}")
+    print(f"{'=' * 60}")
+    print(f"  Score:              {result.score}/100")
+    print(f"  Requirements Match: {result.requirements_match}/100")
+    print(f"  Domain Match:       {result.domain_match}/100")
+    print(f"  Reasoning:\n    {result.reasoning}")
+    print(f"  Gaps:\n    {result.gaps}")
+    hard = "\n    ".join(r.strip() for r in result.hard_requirements.split("|") if r.strip())
+    preferred = "\n    ".join(r.strip() for r in result.preferred_requirements.split("|") if r.strip())
+    print(f"  Hard Requirements:\n    {hard}")
+    print(f"  Preferred Requirements:\n    {preferred}")
+    print()
+
+
+def _print_filtered_result(job: JobListing, result: FilteredResult) -> None:
+    print(f"\n{'=' * 60}")
+    print(f"  {job.title} at {job.company}")
+    print(f"{'=' * 60}")
+    print(f"  Filtered out: {result.reason}")
+    print()
+
+
+def _print_failed_result(job: JobListing, result: FailedResult) -> None:
+    print(f"\n{'=' * 60}")
+    print(f"  {job.title} at {job.company}")
+    print(f"{'=' * 60}")
+    print(f"  Scoring failed: {result.reason}")
+    print()
+
+
+
+
+def interactive_job_loop(profile_dir: Path, scorer_name: str, output_dir: Path) -> None:
+    print("\n=== Interactive Job Scorer ===")
+    print("Paste job details and get an instant score.")
+    print("A consolidated report will be generated when you're done.\n")
+
+    all_ranked: list[tuple[JobListing, ScoredResult]] = []
+    all_filtered: list[tuple[JobListing, FilteredResult]] = []
+    all_failed: list[tuple[JobListing, FailedResult]] = []
+
+    while True:
+        try:
+            title = input("Job title: ").strip()
+            if not title:
+                print("Title is required. Press Ctrl+C to exit.\n")
+                continue
+
+            company = input("Company: ").strip()
+            if not company:
+                print("Company is required. Press Ctrl+C to exit.\n")
+                continue
+
+            print("\nPaste the full job description, then press Ctrl+D when done:")
+            description_lines = sys.stdin.readlines()
+            description = "".join(description_lines).strip()
+
+            if not description:
+                print("Description is empty. Try again.\n")
+                continue
+
+            job = JobListing(
+                title=title,
+                company=company,
+                location="",
+                url="",
+                date_posted=datetime.now().strftime("%Y-%m-%d"),
+                description=description,
+            )
+
+            print(f"\nScoring {title} at {company}...")
+            ranked, filtered, failed = score([job], profile_dir, scorer_name=scorer_name)
+
+            for j, result in ranked:
+                _print_score_result(j, result)
+                all_ranked.append((j, result))
+            for j, result in filtered:
+                _print_filtered_result(j, result)
+                all_filtered.append((j, result))
+            for j, result in failed:
+                _print_failed_result(j, result)
+                all_failed.append((j, result))
+
+        except EOFError:
+            print("\nNo input received. Press Ctrl+C to exit.\n")
+            continue
+
+        answer = input("\nScore another job? (y/n): ").strip().lower()
+        if answer != "y":
+            break
+        print()
+
+    if not all_ranked and not all_filtered and not all_failed:
+        print("No jobs were scored. Bye!")
+        return
+
+    all_ranked.sort(key=lambda x: x[1].score, reverse=True)
+    date_str = datetime.now().strftime("%Y_%m_%d")
+    report_path = output_dir / f"interactive_{date_str}.md"
+    report(all_ranked, all_filtered, all_failed, report_path)
+    print(f"\nSession complete: {len(all_ranked)} scored, {len(all_filtered)} filtered, {len(all_failed)} failed.")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="AI job discovery engine")
     parser.add_argument(
@@ -104,7 +215,18 @@ def main() -> None:
     )
     parser.add_argument("--no-dedup", action="store_true", help="Skip deduplication")
     parser.add_argument("--clear-dedup", action="store_true", help="Clear the dedup store before running")
+    parser.add_argument(
+        "--interactive-job-score", "-ijs",
+        action="store_true",
+        help="Interactively paste and score individual jobs without scraping",
+    )
     args = parser.parse_args()
+
+    if args.interactive_job_score:
+        config = load_config()
+        profile_dir = _select_profile_dir()
+        interactive_job_loop(profile_dir, config["scorer"], args.output.parent)
+        return
 
     config = load_config()
     profile_dir = _select_profile_dir()
