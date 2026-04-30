@@ -130,9 +130,10 @@ class RemotivePlugin:
             detail_page.wait_for_load_state("domcontentloaded")
 
             # 1. Extract actual external URL
-            # Look for the "Apply for this position" button which is usually a link
-            apply_link = detail_page.locator("a.remotive-btn-chocolate")
-            actual_url = apply_link.first.get_attribute("href") if apply_link.count() > 0 else url
+            apply_link = detail_page.locator("a.remotive-btn-chocolate:not(.job-tile-apply)").filter(
+                has_text="Apply for this position",
+            ).first
+            actual_url = apply_link.get_attribute("href") if apply_link.count() > 0 else url
 
             # 2. Extract description
             # The description is under the "Role Description" header.

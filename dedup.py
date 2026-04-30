@@ -5,7 +5,22 @@ from datetime import date
 from pathlib import Path
 from rapidfuzz import fuzz
 
+from dataclasses import dataclass
 from models import FilteredResult, JobListing, ScoredResult
+
+
+@dataclass
+class DedupMatch:
+    """Details about why a job was flagged as a duplicate."""
+    job: JobListing
+    matched_company: str
+    matched_title: str
+    matched_description: str
+    matched_url: str
+    matched_first_seen: str
+    company_score: float
+    title_score: float
+    description_score: float
 
 
 DEFAULT_STORE_PATH = Path("data/seen_jobs.json")
@@ -42,18 +57,13 @@ def normalize_title(title: str) -> str:
     title = title.strip().strip(".,;:")
     return title
 
-
-def description_similar(desc_a: str, desc_b: str, threshold: int) -> bool:
-    return fuzz.token_set_ratio(desc_a.lower(), desc_b.lower()) >= threshold
-
-
 class DedupStore:
     def __init__(
         self,
         profile_dir: Path,
         company_threshold: float = 50,
         title_threshold: float = 80,
-        description_threshold: int = 80,
+        description_threshold: int = 95,
     ):
         self.store_path = _build_store_path(profile_dir)
         self.company_threshold = company_threshold
@@ -75,7 +85,7 @@ class DedupStore:
 
     def _find_candidates(
         self, job: JobListing, store: dict
-    ) -> list[dict]:
+    ) -> list[tuple[dict, float, float]]:
         """Find potential duplicate entries from the store.
 
         Two-stage filter:
@@ -85,6 +95,8 @@ class DedupStore:
            different roles at the same company like "SWE" vs "Principal Engineer"
 
         Both must pass before description comparison runs.
+
+        Returns list of (stored_entry, company_score, title_score).
         """
         norm_company = normalize_company(job.company)
         norm_title = normalize_title(job.title)
@@ -106,45 +118,51 @@ class DedupStore:
             if title_score < self.title_threshold:
                 continue
 
-            candidates.append(stored_entry)
+            candidates.append((stored_entry, company_score, title_score))
 
         return candidates
 
     def deduplicate(
         self, jobs: list[JobListing], plugin_name: str
-    ) -> tuple[list[JobListing], list[JobListing], float]:
+    ) -> tuple[list[JobListing], list[DedupMatch], float]:
         """Find duplicates without committing to store.
 
-        Returns (new_jobs, duplicate_jobs, elapsed_seconds).
-        New jobs are NOT added to the store yet — use commit() after scoring
-        to persist them. This way only successfully scored/filtered jobs are
-        stored, not failed ones.
+        Returns (new_jobs, duplicate_matches, elapsed_seconds).
+        Each DedupMatch contains the new job, the matched stored job's details
+        (including both descriptions), and the similarity scores.
         """
         start = time.perf_counter()
 
         store = self.load()
         new_jobs = []
-        duplicate_jobs = []
+        duplicate_matches: list[DedupMatch] = []
 
         for job in jobs:
-            is_duplicate = False
+            match: DedupMatch | None = None
 
-            for candidate in self._find_candidates(job, store):
-                if description_similar(
-                    job.description,
-                    candidate["description"],
-                    self.description_threshold,
-                ):
-                    is_duplicate = True
+            for candidate, company_score, title_score in self._find_candidates(job, store):
+                desc_score = fuzz.ratio(job.description.lower(), candidate["description"].lower())
+                if desc_score >= self.description_threshold:
+                    match = DedupMatch(
+                        job=job,
+                        matched_company=candidate["company"],
+                        matched_title=candidate["title"],
+                        matched_description=candidate["description"],
+                        matched_url=candidate.get("url", ""),
+                        matched_first_seen=candidate.get("first_seen", ""),
+                        company_score=company_score,
+                        title_score=title_score,
+                        description_score=desc_score,
+                    )
                     break
 
-            if is_duplicate:
-                duplicate_jobs.append(job)
+            if match:
+                duplicate_matches.append(match)
             else:
                 new_jobs.append(job)
 
         elapsed = time.perf_counter() - start
-        return new_jobs, duplicate_jobs, elapsed
+        return new_jobs, duplicate_matches, elapsed
 
     def commit(
         self,

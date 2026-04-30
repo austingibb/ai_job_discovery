@@ -62,7 +62,7 @@ def load_dedup_config() -> dict:
     defaults = {
         "company_threshold": 50,
         "title_threshold": 80,
-        "description_threshold": 80,
+        "description_threshold": 95,
     }
     defaults.update(dedup)
     return defaults
