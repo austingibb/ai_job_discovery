@@ -1,12 +1,9 @@
-import json
 import re
-from pathlib import Path
 
 from playwright.sync_api import Page
 
+from config import load_config, load_scraper_config
 from models import JobListing
-
-_CONFIG_PATH = Path(__file__).parent / "config.json"
 
 
 class HiringCafePlugin:
@@ -17,9 +14,10 @@ class HiringCafePlugin:
         filter_reposts: bool = False,
         max_age_days: int | None = None,
     ) -> None:
-        config = json.loads(_CONFIG_PATH.read_text())
-        self.cdp_url: str = config["cdp_url"]
-        self.num_pages: int = config.get("num_pages", 1)
+        global_config = load_config()
+        scraper_config = load_scraper_config("hiring_cafe")
+        self.cdp_url: str = global_config["cdp_url"]
+        self.num_pages: int = scraper_config.get("num_pages", 1)
         self.exclude_companies: set[str] = {c.lower() for c in (exclude_companies or [])}
         self.exclude_title_keywords: list[str] = [k.lower() for k in (exclude_title_keywords or [])]
         self.max_age_days: int | None = max_age_days

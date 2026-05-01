@@ -48,8 +48,15 @@ def load_config() -> dict:
     return json.loads((_CONFIG_DIR / "config.json").read_text())
 
 
+def load_scraper_config(name: str) -> dict:
+    scraper_path = _CONFIG_DIR / "scrapers" / name / "config.json"
+    if scraper_path.exists():
+        return json.loads(scraper_path.read_text())
+    return {}
+
+
 def load_scorer_config(name: str) -> dict:
-    scorer_path = _CONFIG_DIR / "scorers" / f"{name}.json"
+    scorer_path = _CONFIG_DIR / "scorers" / name / "config.json"
     if scorer_path.exists():
         return json.loads(scorer_path.read_text())
     return {}

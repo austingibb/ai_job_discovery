@@ -1,18 +1,14 @@
-import json
-from pathlib import Path
-
 import requests
 
+from config import load_scorer_config
 from models import FailedResult, JobListing, ScoringResult, UserProfile
 from scorers.parser import parse_response
 from scorers.prompt import build_prompt
 
-_CONFIG_PATH = Path(__file__).parent / "config.json"
-
 
 class LlamaScorer:
     def __init__(self, **overrides: object) -> None:
-        config = json.loads(_CONFIG_PATH.read_text())
+        config = load_scorer_config("llama")
         config.update({k: v for k, v in overrides.items() if v is not None})
         self.base_url: str = config["base_url"]
         self.model: str = config["model"]

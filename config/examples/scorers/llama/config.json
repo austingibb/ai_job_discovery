@@ -1,0 +1,7 @@
+{
+  "base_url": "http://localhost:8080",
+  "model": "llama3",
+  "api": "ollama",
+  "batch_size": 1,
+  "timeout": 120
+}

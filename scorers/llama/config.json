@@ -1,7 +1,0 @@
-{
-  "base_url": "http://192.168.0.103:8080",
-  "model": "Qwen3.6-27B-Q5_K_S",
-  "api": "openai",
-  "batch_size": 1,
-  "timeout": 120
-}

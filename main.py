@@ -18,6 +18,7 @@ from config import (
     load_prefilter,
     load_profile,
     load_scorer_config,
+    load_scraper_config,
 )
 from dedup import DedupStore, _build_store_path
 from dedup_reporting import write_dedup_report

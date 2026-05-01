@@ -1,14 +1,11 @@
 import asyncio
-import json
-from pathlib import Path
 
 from playwright.async_api import Page, async_playwright
 
+from config import load_config, load_scorer_config
 from models import FailedResult, JobListing, ScoringResult, ScoringError, UserProfile
 from scorers.parser import parse_response
 from scorers.prompt import build_prompt, build_continuation_prompt
-
-_CONFIG_PATH = Path(__file__).parent / "config.json"
 
 
 class Progress:
@@ -22,12 +19,13 @@ class Progress:
 
 class ClaudeBrowserScorer:
     def __init__(self, project_url: str | None = None) -> None:
-        config = json.loads(_CONFIG_PATH.read_text())
-        self.cdp_url: str = config["cdp_url"]
-        self.project_url: str = project_url or config["default_url"]
-        self.batch_size: int = config["batch_size"]
-        self.concurrency: int = config.get("concurrency", 1)
-        self.cleanup_chat: bool = config.get("cleanup_chat", False)
+        global_config = load_config()
+        scorer_config = load_scorer_config("claude_browser")
+        self.cdp_url: str = global_config["cdp_url"]
+        self.project_url: str = project_url or scorer_config.get("default_url", "https://claude.ai/new")
+        self.batch_size: int = scorer_config.get("batch_size", 2)
+        self.concurrency: int = scorer_config.get("concurrency", 1)
+        self.cleanup_chat: bool = scorer_config.get("cleanup_chat", False)
 
     def score(self, profile: UserProfile, jobs: list[JobListing]) -> list[ScoringResult]:
         return asyncio.run(self._score_async(profile, jobs))

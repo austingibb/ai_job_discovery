@@ -1,5 +1,5 @@
 {
-  "cdp_url": "http://localhost:9222",
+  "project_url": "https://claude.ai/project/your-project-id-here",
   "default_url": "https://claude.ai/new",
   "batch_size": 2,
   "concurrency": 3,

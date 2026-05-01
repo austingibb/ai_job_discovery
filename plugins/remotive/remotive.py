@@ -1,14 +1,11 @@
-import json
 import re
 import random
 import time
-from pathlib import Path
 
 from playwright.sync_api import Page, Browser
 
+from config import load_config, load_scraper_config
 from models import JobListing
-
-_CONFIG_PATH = Path(__file__).parent / "config.json"
 
 
 class RemotivePlugin:
@@ -19,9 +16,10 @@ class RemotivePlugin:
         max_age_days: int | None = None,
         filter_reposts: bool = False,
     ) -> None:
-        config = json.loads(_CONFIG_PATH.read_text())
-        self.cdp_url: str = config["cdp_url"]
-        self.num_groups: int = config.get("num_groups", 1)
+        global_config = load_config()
+        scraper_config = load_scraper_config("remotive")
+        self.cdp_url: str = global_config["cdp_url"]
+        self.num_groups: int = scraper_config.get("num_groups", 1)
         self.exclude_companies: set[str] = {c.lower() for c in (exclude_companies or [])}
         self.exclude_title_keywords: list[str] = [k.lower() for k in (exclude_title_keywords or [])]
         self.max_age_days: int | None = max_age_days
