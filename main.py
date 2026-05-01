@@ -28,7 +28,7 @@ from plugins.hiring_cafe.hiring_cafe import HiringCafePlugin
 from plugins.remotive.remotive import RemotivePlugin
 from plugins.mock.mock import MockPlugin
 from scorers.claude_browser.claude_browser import ClaudeBrowserScorer
-from scorers.llama.llama import LlamaScorer
+from scorers.llm.llm import LLMScorer
 from scorers.mock.mock import MockScorer
 
 PLUGINS: dict[str, type] = {
@@ -53,10 +53,10 @@ def scrape(profile_dir: Path, plugin_name: str = "linkedin") -> list[JobListing]
 
 
 def _build_scorer(scorer_name: str) -> AIScorer:
-    scorer_config = load_scorer_config(scorer_name)
-    if scorer_name == "llama":
-        return LlamaScorer(**scorer_config)
-    return ClaudeBrowserScorer(project_url=scorer_config.get("project_url"))
+    if scorer_name == "claude_browser":
+        scorer_config = load_scorer_config(scorer_name)
+        return ClaudeBrowserScorer(project_url=scorer_config.get("project_url"))
+    return LLMScorer(config_name=scorer_name)
 
 
 def score(
