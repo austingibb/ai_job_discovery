@@ -40,7 +40,7 @@ PLUGINS: dict[str, type] = {
 }
 
 
-def scrape(profile_dir: Path, plugin_name: str = "linkedin") -> list[JobListing]:
+def gather_jobs(profile_dir: Path, plugin_name: str = "linkedin") -> list[JobListing]:
     prefilter = load_prefilter(profile_dir)
     plugin_cls = PLUGINS[plugin_name]
     plugin = plugin_cls(
@@ -49,7 +49,7 @@ def scrape(profile_dir: Path, plugin_name: str = "linkedin") -> list[JobListing]
         filter_reposts=prefilter.get("filter_reposts", False),
         max_age_days=prefilter.get("max_age_days"),
     )
-    return plugin.scrape()
+    return plugin.gather_jobs()
 
 
 def _build_scorer(scorer_name: str) -> AIScorer:
@@ -252,18 +252,24 @@ def main() -> None:
         action="store_true",
         help="Interactively paste and score individual jobs without scraping",
     )
+    parser.add_argument(
+        "--dedup-report",
+        "-dr",
+        action="store_true",
+        help="Generate an HTML deduplication report",
+    )
     args = parser.parse_args()
 
     if args.interactive_job_score:
         config = load_config()
-        profile_dir = _select_profile_dir()
+        profile_dir = _select_profile_dir(config["profile"])
         interactive_job_loop(profile_dir, config["scorer"], args.output.parent)
         return
 
     config = load_config()
-    profile_dir = _select_profile_dir()
-    plugin_name = config.get("plugin", "linkedin")
-    jobs = scrape(profile_dir, plugin_name=plugin_name)
+    profile_dir = _select_profile_dir(config["profile"])
+    plugin_name = config.get("plugins", "linkedin")
+    jobs = gather_jobs(profile_dir, plugin_name=plugin_name)
 
     dedup_count = 0
     new_jobs_to_score = jobs
@@ -282,7 +288,7 @@ def main() -> None:
         print(
             f"Dedup: {dedup_count} duplicates removed, {len(new_jobs_to_score)} new jobs to score ({elapsed:.2f}s)"
         )
-        if dedup_matches:
+        if dedup_matches and args.dedup_report:
             dedup_report_path = Path(
                 f"output/dedup_report_{plugin_name}_{profile_dir.name}_{datetime.now().strftime('%Y_%m_%d')}.html"
             )

@@ -3,10 +3,9 @@ import asyncio
 from playwright.async_api import Page, async_playwright
 
 from config import load_config, load_scorer_config
-from models import FailedResult, JobListing, ScoringResult, ScoringError, UserProfile
+from models import AIScorer, FailedResult, JobListing, ScoringResult, ScoringError, UserProfile
 from scorers.parser import parse_response
 from scorers.prompt import build_prompt, build_continuation_prompt
-
 
 class Progress:
     def __init__(self, total: int):
@@ -16,8 +15,7 @@ class Progress:
     def increment(self, count: int):
         self.completed += count
 
-
-class ClaudeBrowserScorer:
+class ClaudeBrowserScorer(AIScorer):
     def __init__(self, project_url: str | None = None) -> None:
         global_config = load_config()
         scorer_config = load_scorer_config("claude_browser")

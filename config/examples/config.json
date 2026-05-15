@@ -1,6 +1,6 @@
 {
   "cdp_url": "http://localhost:9222",
-  "plugin": "linkedin",
+  "plugins": "linkedin",
   "scorer": "claude_browser",
   "dedup": {
     "company_threshold": 50,

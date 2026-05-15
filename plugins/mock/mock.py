@@ -1,7 +1,7 @@
-from models import JobListing
+from models import JobBoardPlugin, JobListing
 
 
-class MockPlugin:
+class MockPlugin(JobBoardPlugin):
     def __init__(
         self,
         exclude_companies: list[str] | None = None,
@@ -11,7 +11,7 @@ class MockPlugin:
     ) -> None:
         pass
 
-    def scrape(self) -> list[JobListing]:
+    def gather_jobs(self) -> list[JobListing]:
         return [
             JobListing(
                 title="Software Development Engineer II",

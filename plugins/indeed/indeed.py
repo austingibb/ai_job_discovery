@@ -3,10 +3,10 @@ import re
 from playwright.sync_api import Page
 
 from config import load_config, load_scraper_config
-from models import JobListing
+from models import JobBoardPlugin, JobListing
 
 
-class IndeedPlugin:
+class IndeedPlugin(JobBoardPlugin):
     def __init__(
         self,
         exclude_companies: list[str] | None = None,
@@ -23,7 +23,7 @@ class IndeedPlugin:
         self.filter_reposts: bool = filter_reposts
         self.max_age_days: int | None = max_age_days
 
-    def scrape(self) -> list[JobListing]:
+    def gather_jobs(self) -> list[JobListing]:
         from playwright.sync_api import sync_playwright
 
         with sync_playwright() as p:

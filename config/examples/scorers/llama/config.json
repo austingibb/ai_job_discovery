@@ -3,5 +3,6 @@
   "model": "llama3",
   "api": "ollama",
   "batch_size": 1,
-  "timeout": 120
+  "timeout": 120,
+  "max_concurrent": 1
 }

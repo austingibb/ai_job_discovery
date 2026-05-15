@@ -3,6 +3,7 @@
   "model": "anthropic/claude-sonnet-20241022",
   "batch_size": 1,
   "timeout": 120,
+  "max_concurrent": 4,
   "site_url": "https://gitlab.com/austingibb/ai_job_discovery",
   "site_name": "austingibb AI Job Discovery",
   "api_key": "",

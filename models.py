@@ -1,5 +1,8 @@
+import os
 from dataclasses import dataclass
 from typing import Protocol
+
+os.environ.setdefault("NODE_NO_WARNINGS", "1")
 
 
 @dataclass
@@ -52,7 +55,7 @@ class ScoringError(Exception):
 
 
 class JobBoardPlugin(Protocol):
-    def scrape(self) -> list[JobListing]: ...
+    def gather_jobs(self) -> list[JobListing]: ...
 
 
 class AIScorer(Protocol):
