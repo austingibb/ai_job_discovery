@@ -87,7 +87,10 @@ class LinkedInPlugin(JobBoardPlugin):
                 break
             next_btn.click()
             page.wait_for_load_state("domcontentloaded")
-            page.wait_for_timeout(1500)
+            page.locator(
+                '[data-testid="lazy-column"] div[role="button"][componentkey]'
+                ':has(button[aria-label$=" job"])'
+            ).first.wait_for(state="visible", timeout=15_000)
             print(f"Scraping page {p} of {self.num_pages}...")
             new_jobs = self._scrape_jobs(page)
             print(f"  Found {len(new_jobs)} jobs.")
