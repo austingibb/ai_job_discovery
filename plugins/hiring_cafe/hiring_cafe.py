@@ -86,7 +86,7 @@ class HiringCafePlugin(JobBoardPlugin):
                 
                 next_btn.click()
                 page.wait_for_load_state("domcontentloaded")
-                page.wait_for_timeout(2000)
+                page.locator('div.grid a[href^="/job/"], div.grid a[href^="/viewjob/"]').first.wait_for(state="visible", timeout=15_000)
                 
                 print(f"Scraping page {pg} of {self.num_pages}...")
                 new_jobs = self._scrape_jobs(page)
@@ -113,7 +113,8 @@ class HiringCafePlugin(JobBoardPlugin):
         for i in range(total):
             card = cards.nth(i)
 
-            viewjob_link = card.locator('a[href^="/viewjob/"]')
+            # Match job links - try /job/ (current) and /viewjob/ (legacy)
+            viewjob_link = card.locator('a[href^="/job/"], a[href^="/viewjob/"]')
             if viewjob_link.count() == 0:
                 continue
             try:
@@ -127,12 +128,20 @@ class HiringCafePlugin(JobBoardPlugin):
 
             title = ""
             try:
-                # Title is in the div just after the div containing the age (first SVG)
-                first_svg_parent = card.locator("svg >> nth=0").locator("xpath=..")
-                title_div = first_svg_parent.locator("xpath=following-sibling::div[1]")
-                title = title_div.locator("span").first.inner_text(timeout=3_000).strip()
+                # Title is in a bold span inside the card
+                title_span = card.locator("span.font-bold.text-start")
+                if title_span.count() > 0:
+                    title = title_span.first.inner_text(timeout=3_000).strip()
             except Exception:
                 pass
+            if not title:
+                # Fallback: title from the div after the first SVG parent
+                try:
+                    first_svg_parent = card.locator("svg >> nth=0").locator("xpath=..")
+                    title_div = first_svg_parent.locator("xpath=following-sibling::div[1]")
+                    title = title_div.locator("span").first.inner_text(timeout=3_000).strip()
+                except Exception:
+                    pass
             if not title:
                 continue
 
