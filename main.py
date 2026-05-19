@@ -1,4 +1,5 @@
 import argparse
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -88,6 +89,24 @@ def _escape_md_pipe(text: str) -> str:
     return text.replace("|", "&#124;")
 
 
+def _unique_path(path: Path) -> Path:
+    if not path.exists():
+        return path
+    stem = path.stem
+    m = re.search(r"_(\d+)$", stem)
+    if m and not re.search(r"_\d{4}_\d{2}_\d{2}$", stem):
+        base = stem[: m.start()]
+        next_n = int(m.group(1)) + 1
+    else:
+        base = stem
+        next_n = 1
+    while True:
+        candidate = path.with_name(f"{base}_{next_n}{path.suffix}")
+        if not candidate.exists():
+            return candidate
+        next_n += 1
+
+
 def report(
     ranked: list[tuple[JobListing, ScoredResult]],
     filtered: list[tuple[JobListing, FilteredResult]],
@@ -117,6 +136,7 @@ def report(
         lines.append(f"**Preferred Requirements:**\n{preferred}\n")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path = _unique_path(output_path)
     output_path.write_text("\n".join(lines))
     print(f"Report written to {output_path}")
 
