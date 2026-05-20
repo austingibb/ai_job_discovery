@@ -24,6 +24,7 @@ class ClaudeBrowserScorer(AIScorer):
         self.batch_size: int = scorer_config.get("batch_size", 2)
         self.concurrency: int = scorer_config.get("concurrency", 1)
         self.cleanup_chat: bool = scorer_config.get("cleanup_chat", False)
+        self.model: str | None = scorer_config.get("model", None)
 
     def score(self, profile: UserProfile, jobs: list[JobListing]) -> list[ScoringResult]:
         return asyncio.run(self._score_async(profile, jobs))
@@ -90,6 +91,9 @@ class ClaudeBrowserScorer(AIScorer):
             await page.goto(self.project_url)
             await page.wait_for_load_state("domcontentloaded")
 
+            if self.model:
+                await self._select_model(page)
+
             for idx, i in enumerate(batch_indices):
                 batch = jobs[i : i + self.batch_size]
 
@@ -117,6 +121,31 @@ class ClaudeBrowserScorer(AIScorer):
             await page.close()
 
         return results
+
+    async def _select_model(self, page: Page) -> None:
+        """Select the configured model via the model selector dropdown."""
+        dropdown = page.locator('button[data-testid="model-selector-dropdown"]')
+        await dropdown.wait_for(state="visible", timeout=10_000)
+
+        # Check if the desired model is already selected
+        current_label = await dropdown.get_attribute("aria-label") or ""
+        if self.model and self.model in current_label:
+            print(f"  Model already set to {self.model}, skipping selection.")
+            return
+
+        # Open the dropdown
+        await dropdown.click()
+        await page.wait_for_timeout(500)
+
+        # Find and click the matching model option
+        menu = page.locator('[role="menu"]')
+        await menu.wait_for(state="visible", timeout=5_000)
+        model_option = menu.locator(f'[role="menuitemradio"]:has(div.font-ui:text-is("{self.model}"))')
+        await model_option.wait_for(state="visible", timeout=5_000)
+        await model_option.click()
+        await page.wait_for_timeout(500)
+
+        print(f"  Selected model: {self.model}")
 
     async def _send_message(self, page: Page, prompt: str) -> str:
         editor = page.locator('div[contenteditable="true"][data-testid="chat-input"]').first
