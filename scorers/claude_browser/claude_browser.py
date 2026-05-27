@@ -140,7 +140,7 @@ class ClaudeBrowserScorer(AIScorer):
         # Find and click the matching model option
         menu = page.locator('[role="menu"]')
         await menu.wait_for(state="visible", timeout=5_000)
-        model_option = menu.locator(f'[role="menuitemradio"]:has(div.font-ui:text-is("{self.model}"))')
+        model_option = menu.locator(f'[role="menuitemradio"]:has(.font-ui:text-is("{self.model}"))')
         await model_option.wait_for(state="visible", timeout=5_000)
         await model_option.click()
         await page.wait_for_timeout(500)
