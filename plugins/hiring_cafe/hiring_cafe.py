@@ -79,15 +79,24 @@ class HiringCafePlugin(JobBoardPlugin):
 
         for pg in range(2, self.num_pages + 1):
             try:
-                next_btn = page.locator('a[aria-label="Next page"]')
-                if next_btn.count() == 0 or not next_btn.is_visible():
-                    print("  No more pages available.")
+                # Pagination uses 0-indexed ?page= param: page 2 -> ?page=1
+                page_param = pg - 1
+                nav = page.locator('nav[aria-label="Pagination"]')
+                if nav.count() == 0:
+                    print("  No pagination nav found.")
                     break
-                
-                next_btn.click()
+
+                # Click the link for the target page number
+                page_link = nav.locator(f'a:has-text("{pg}")')
+                if page_link.count() == 0:
+                    print(f"  No link for page {pg} found.")
+                    break
+
+                page_link.first.click()
                 page.wait_for_load_state("domcontentloaded")
-                page.locator('div.grid a[href^="/job/"], div.grid a[href^="/viewjob/"]').first.wait_for(state="visible", timeout=15_000)
-                
+                # Wait for job cards to appear on the new page
+                page.locator('div.grid a[href^="/job/"]').first.wait_for(state="visible", timeout=15_000)
+
                 print(f"Scraping page {pg} of {self.num_pages}...")
                 new_jobs = self._scrape_jobs(page)
                 print(f"  Found {len(new_jobs)} new jobs.")
