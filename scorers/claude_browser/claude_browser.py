@@ -200,8 +200,8 @@ class ClaudeBrowserScorer(AIScorer):
             await delete_option.wait_for(state="visible", timeout=10000)
             await delete_option.click()
 
-            # 4. Click the "Delete" confirmation button
-            confirm_btn = page.locator('[data-testid="delete-modal-confirm"]').first
+            # 4. Click the "Delete" confirmation button in the dialog
+            confirm_btn = page.locator('[role="alertdialog"] button:has-text("Delete")').first
             await confirm_btn.wait_for(state="visible", timeout=10000)
             await confirm_btn.click()
             
