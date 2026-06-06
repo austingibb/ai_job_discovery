@@ -181,16 +181,13 @@ class ClaudeBrowserScorer(AIScorer):
 
     async def _delete_current_chat(self, page: Page):
         try:
-            # 1. Ensure the sidebar is open
-            sidebar_toggle = page.locator('[data-testid="pin-sidebar-toggle"]').first
-            if await sidebar_toggle.is_visible():
-                is_pressed = await sidebar_toggle.get_attribute("aria-pressed")
-                if is_pressed == "false":
-                    await sidebar_toggle.click()
-                    await page.wait_for_timeout(500)
+            # 1. Hover the active chat item to reveal the "More options" button
+            active_chat = page.locator('a[aria-current="page"]').first
+            await active_chat.wait_for(state="visible", timeout=10000)
+            await active_chat.hover()
+            await page.wait_for_timeout(500)
 
             # 2. Click the "More options" button for the active chat
-            # The active chat is marked with aria-current="page"
             more_options_btn = page.locator('li:has(a[aria-current="page"]) button[aria-label*="More options"]').first
             await more_options_btn.wait_for(state="visible", timeout=10000)
             await more_options_btn.click()
@@ -204,7 +201,7 @@ class ClaudeBrowserScorer(AIScorer):
             confirm_btn = page.locator('[role="alertdialog"] button:has-text("Delete")').first
             await confirm_btn.wait_for(state="visible", timeout=10000)
             await confirm_btn.click()
-            
+
             print("Successfully deleted the chat.")
         except Exception as e:
             print(f"Failed to delete the chat: {e}")
