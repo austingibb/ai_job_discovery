@@ -13,11 +13,15 @@ class LinkedInPlugin(JobBoardPlugin):
         exclude_title_keywords: list[str] | None = None,
         filter_reposts: bool = False,
         max_age_days: int | None = None,
+        search_filter_url: str | None = None,
     ) -> None:
         global_config = load_config()
         scraper_config = load_scraper_config("linkedin")
         self.cdp_url: str = global_config["cdp_url"]
         self.num_pages: int = scraper_config.get("num_pages", 1)
+        # Optional preset search URL (encodes the filters). When set, the scraper
+        # navigates straight to it and skips the interactive filter prompt.
+        self.search_filter_url: str | None = search_filter_url or scraper_config.get("search_filter_url")
         self.exclude_companies: set[str] = {c.lower() for c in (exclude_companies or [])}
         self.exclude_title_keywords: list[str] = [k.lower() for k in (exclude_title_keywords or [])]
         self.filter_reposts: bool = filter_reposts
@@ -31,10 +35,18 @@ class LinkedInPlugin(JobBoardPlugin):
             page = browser.contexts[0].new_page()
 
             try:
-                page.goto("https://www.linkedin.com/jobs")
+                page.goto(self.search_filter_url or "https://www.linkedin.com/jobs")
                 page.wait_for_load_state("domcontentloaded")
 
-                input("\nSet your LinkedIn search filters, then press Enter to scrape...")
+                if self.search_filter_url:
+                    # Non-interactive: the URL encodes the filters, so wait for the
+                    # results column to render instead of prompting for manual filters.
+                    page.locator(
+                        '[data-testid="lazy-column"] div[role="button"][componentkey]'
+                        ':has(button[aria-label$=" job"])'
+                    ).first.wait_for(state="visible", timeout=30_000)
+                else:
+                    input("\nSet your LinkedIn search filters, then press Enter to scrape...")
 
                 jobs = self._scrape_all_pages(page)
                 return self._prefilter(jobs)

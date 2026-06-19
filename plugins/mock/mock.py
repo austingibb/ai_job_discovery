@@ -8,6 +8,7 @@ class MockPlugin(JobBoardPlugin):
         exclude_title_keywords: list[str] | None = None,
         filter_reposts: bool = False,
         max_age_days: int | None = None,
+        search_filter_url: str | None = None,
     ) -> None:
         pass
 

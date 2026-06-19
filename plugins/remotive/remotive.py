@@ -15,11 +15,15 @@ class RemotivePlugin(JobBoardPlugin):
         exclude_title_keywords: list[str] | None = None,
         max_age_days: int | None = None,
         filter_reposts: bool = False,
+        search_filter_url: str | None = None,
     ) -> None:
         global_config = load_config()
         scraper_config = load_scraper_config("remotive")
         self.cdp_url: str = global_config["cdp_url"]
         self.num_groups: int = scraper_config.get("num_groups", 1)
+        # Optional preset search URL (encodes the filters). When set, the scraper
+        # navigates straight to it and skips the interactive filter prompt.
+        self.search_filter_url: str | None = search_filter_url or scraper_config.get("search_filter_url")
         self.exclude_companies: set[str] = {c.lower() for c in (exclude_companies or [])}
         self.exclude_title_keywords: list[str] = [k.lower() for k in (exclude_title_keywords or [])]
         self.max_age_days: int | None = max_age_days
@@ -32,10 +36,13 @@ class RemotivePlugin(JobBoardPlugin):
             page = browser.contexts[0].new_page()
 
             try:
-                page.goto("https://remotive.com/remote-jobs")
+                page.goto(self.search_filter_url or "https://remotive.com/remote-jobs")
                 page.wait_for_load_state("domcontentloaded")
 
-                input("\nSet your Remotive search filters, then press Enter to scrape...")
+                if not self.search_filter_url:
+                    input("\nSet your Remotive search filters, then press Enter to scrape...")
+                # Non-interactive needs no extra wait here: _scrape_all_groups waits
+                # for the #stats element before collecting stubs.
 
                 jobs = self._scrape_all_groups(browser, page)
                 return self._prefilter(jobs)

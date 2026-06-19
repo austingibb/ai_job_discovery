@@ -41,7 +41,11 @@ PLUGINS: dict[str, type] = {
 }
 
 
-def gather_jobs(profile_dir: Path, plugin_name: str = "linkedin") -> list[JobListing]:
+def gather_jobs(
+    profile_dir: Path,
+    plugin_name: str = "linkedin",
+    search_filter_url: str | None = None,
+) -> list[JobListing]:
     prefilter = load_prefilter(profile_dir)
     plugin_cls = PLUGINS[plugin_name]
     plugin = plugin_cls(
@@ -49,6 +53,7 @@ def gather_jobs(profile_dir: Path, plugin_name: str = "linkedin") -> list[JobLis
         exclude_title_keywords=prefilter["exclude_title_keywords"],
         filter_reposts=prefilter.get("filter_reposts", False),
         max_age_days=prefilter.get("max_age_days"),
+        search_filter_url=search_filter_url,
     )
     return plugin.gather_jobs()
 
@@ -278,6 +283,22 @@ def main() -> None:
         action="store_true",
         help="Generate an HTML deduplication report",
     )
+    parser.add_argument(
+        "--plugin",
+        help="Override the scraper plugin from config (e.g. hiring_cafe, linkedin)",
+    )
+    parser.add_argument(
+        "--scrape-url",
+        help=(
+            "Run a non-interactive scrape against this preset search URL, skipping "
+            "the manual filter prompt. Overrides search_filter_url in the scraper config."
+        ),
+    )
+    parser.add_argument(
+        "--scrape-only",
+        action="store_true",
+        help="Scrape and print the gathered listings without scoring (no scorer calls)",
+    )
     args = parser.parse_args()
 
     if args.interactive_job_score:
@@ -288,8 +309,18 @@ def main() -> None:
 
     config = load_config()
     profile_dir = _select_profile_dir(config["profile"])
-    plugin_name = config.get("plugins", "linkedin")
-    jobs = gather_jobs(profile_dir, plugin_name=plugin_name)
+    plugin_name = args.plugin or config.get("plugins", "linkedin")
+    jobs = gather_jobs(
+        profile_dir, plugin_name=plugin_name, search_filter_url=args.scrape_url
+    )
+
+    if args.scrape_only:
+        print(f"\nScrape-only: {len(jobs)} jobs gathered from {plugin_name}.")
+        for j in jobs[:10]:
+            print(f"  - {j.title} @ {j.company} ({j.location}) [{j.date_posted}] {j.url}")
+        if len(jobs) > 10:
+            print(f"  ... and {len(jobs) - 10} more")
+        return
 
     dedup_count = 0
     new_jobs_to_score = jobs
