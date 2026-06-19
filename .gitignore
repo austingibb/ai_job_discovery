@@ -13,5 +13,12 @@ output/
 /obj
 *.log
 
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
 # Dedup store
 data/
