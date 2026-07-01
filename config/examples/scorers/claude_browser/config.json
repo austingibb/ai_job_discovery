@@ -4,5 +4,5 @@
   "batch_size": 2,
   "concurrency": 3,
   "cleanup_chat": true,
-  "model": "Sonnet 4.6"
+  "model": "Sonnet 5"
 }
