@@ -6,6 +6,7 @@ from config import load_config, load_scorer_config
 from models import AIScorer, FailedResult, JobListing, ScoringResult, ScoringError, UserProfile
 from scorers.parser import parse_response
 from scorers.prompt import build_prompt, build_continuation_prompt
+from scorers.claude_browser.dom_capture import wait_or_capture
 
 class Progress:
     def __init__(self, total: int):
@@ -25,8 +26,18 @@ class ClaudeBrowserScorer(AIScorer):
         self.concurrency: int = scorer_config.get("concurrency", 1)
         self.cleanup_chat: bool = scorer_config.get("cleanup_chat", False)
         self.model: str | None = scorer_config.get("model", None)
+        # Attach the (pruned) full page HTML to failure evidence. High-recall but
+        # the biggest token cost for the fixer -- flip to false to fall back to
+        # the near-free overlay/candidate evidence if OpenRouter spend spikes.
+        self.attach_page_html: bool = scorer_config.get("attach_page_html", True)
+        # Set when chat cleanup fails after a scoring run (message + dom_context
+        # evidence). Deliberately does NOT fail scoring -- results are already
+        # in hand -- but the canary reads it so leaked chats surface as
+        # SCORER_DRIFT instead of accumulating silently in claude.ai history.
+        self.last_cleanup_error: dict | None = None
 
     def score(self, profile: UserProfile, jobs: list[JobListing]) -> list[ScoringResult]:
+        self.last_cleanup_error = None
         return asyncio.run(self._score_async(profile, jobs))
 
     async def _score_async(self, profile: UserProfile, jobs: list[JobListing]) -> list[ScoringResult]:
@@ -123,9 +134,17 @@ class ClaudeBrowserScorer(AIScorer):
         return results
 
     async def _select_model(self, page: Page) -> None:
-        """Select the configured model via the model selector dropdown."""
-        dropdown = page.locator('button[data-testid="model-selector-dropdown"]')
-        await dropdown.wait_for(state="visible", timeout=10_000)
+        """Select the configured model via the model selector dropdown.
+
+        Every brittle step goes through wait_or_capture: on drift it captures
+        failure-time DOM evidence (open overlays + nearest candidates + pruned
+        page HTML) so triage gets an apt, groundable fix instead of a blind guess.
+        """
+        dropdown = await wait_or_capture(
+            page, 'button[data-testid="model-selector-dropdown"]',
+            what="model selector dropdown button", timeout=10_000,
+            attach_page_html=self.attach_page_html,
+        )
 
         # Check if the desired model is already selected
         current_label = await dropdown.get_attribute("aria-label") or ""
@@ -138,18 +157,26 @@ class ClaudeBrowserScorer(AIScorer):
         await page.wait_for_timeout(500)
 
         # Find and click the matching model option
-        menu = page.locator('[role="menu"]')
-        await menu.wait_for(state="visible", timeout=5_000)
-        model_option = menu.locator(f'[role="menuitemradio"]:has(.font-ui:text-is("{self.model}"))')
-        await model_option.wait_for(state="visible", timeout=5_000)
+        await wait_or_capture(
+            page, '[role="menu"]', what="model menu popup", timeout=5_000,
+            attach_page_html=self.attach_page_html,
+        )
+        model_selector = f'[role="menuitemradio"]:has(.font-ui:text-is("{self.model}"))'
+        model_option = await wait_or_capture(
+            page, model_selector, what=f"model option {self.model!r}", timeout=5_000,
+            attach_page_html=self.attach_page_html,
+        )
         await model_option.click()
         await page.wait_for_timeout(500)
 
         print(f"  Selected model: {self.model}")
 
     async def _send_message(self, page: Page, prompt: str) -> str:
-        editor = page.locator('div[contenteditable="true"][data-testid="chat-input"]').first
-        await editor.wait_for(state="visible")
+        editor = await wait_or_capture(
+            page, 'div[contenteditable="true"][data-testid="chat-input"]',
+            what="chat input field", timeout=30_000,
+            attach_page_html=self.attach_page_html,
+        )
         await page.wait_for_timeout(1000)
 
         await editor.click()
@@ -180,28 +207,60 @@ class ClaudeBrowserScorer(AIScorer):
         return await responses.last.inner_text()
 
     async def _delete_current_chat(self, page: Page):
+        """Delete the chat this worker created. A failure never raises (scoring
+        results are already in hand) but is recorded on self.last_cleanup_error
+        with DOM evidence so the canary can flag leaked chats as drift instead
+        of letting them accumulate silently in claude.ai history."""
+        chat_url = page.url
         try:
             # 1. Hover the active chat item to reveal the "More options" button
-            active_chat = page.locator('a[aria-current="page"]').first
-            await active_chat.wait_for(state="visible", timeout=10000)
+            active_chat = await wait_or_capture(
+                page, 'a[aria-current="page"]',
+                what="active chat item in sidebar", timeout=10_000,
+                attach_page_html=self.attach_page_html,
+            )
             await active_chat.hover()
             await page.wait_for_timeout(500)
 
             # 2. Click the "More options" button for the active chat
-            more_options_btn = page.locator('li:has(a[aria-current="page"]) button[aria-label*="More options"]').first
-            await more_options_btn.wait_for(state="visible", timeout=10000)
+            more_options_btn = await wait_or_capture(
+                page, 'li:has(a[aria-current="page"]) button[aria-label*="More options"]',
+                what="chat 'More options' button", timeout=10_000,
+                attach_page_html=self.attach_page_html,
+            )
             await more_options_btn.click()
 
             # 3. Click the "Delete" option in the menu
-            delete_option = page.locator('[data-testid="delete-chat-trigger"]').first
-            await delete_option.wait_for(state="visible", timeout=10000)
+            delete_option = await wait_or_capture(
+                page, '[data-testid="delete-chat-trigger"]',
+                what="Delete option in chat menu", timeout=10_000,
+                attach_page_html=self.attach_page_html,
+            )
             await delete_option.click()
 
             # 4. Click the "Delete" confirmation button in the dialog
-            confirm_btn = page.locator('[role="alertdialog"] button:has-text("Delete")').first
-            await confirm_btn.wait_for(state="visible", timeout=10000)
+            confirm_btn = await wait_or_capture(
+                page, '[role="alertdialog"] button:has-text("Delete")',
+                what="Delete confirmation button", timeout=10_000,
+                attach_page_html=self.attach_page_html,
+            )
             await confirm_btn.click()
+
+            # 5. Verify it actually deleted: claude.ai navigates away from the
+            # chat URL. Clicking a button is not proof the chat is gone.
+            try:
+                await page.wait_for_url(lambda url: url != chat_url, timeout=10_000)
+            except Exception:
+                raise ScoringError(
+                    f"clicked Delete but still on {page.url}; chat may not be deleted",
+                    raw_response="",
+                )
 
             print("Successfully deleted the chat.")
         except Exception as e:
             print(f"Failed to delete the chat: {e}")
+            self.last_cleanup_error = {
+                "chat_url": chat_url,
+                "error": repr(e)[:300],
+                "dom_context": getattr(e, "dom_context", None),
+            }
