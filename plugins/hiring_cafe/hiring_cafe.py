@@ -124,7 +124,7 @@ class HiringCafePlugin(JobBoardPlugin):
         to get the full description."""
 
         # Phase 1: collect stubs from card grid.
-        grid = page.locator("div.grid-container")
+        grid = page.locator("div.grid")
         cards = grid.locator("> div")
         total = cards.count()
         stubs: list[dict] = []
