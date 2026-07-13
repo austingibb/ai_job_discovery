@@ -54,7 +54,7 @@ ai_job_discovery/
 
 ```bash
 # Clone the repo
-git clone https://github.com/austingibbons/ai_job_discovery.git
+git clone https://github.com/austingibb/ai_job_discovery.git
 cd ai_job_discovery
 
 # Create a virtual environment and install dependencies
@@ -151,3 +151,7 @@ scorer = MockScorer()
 ```
 
 This uses hardcoded job listings and scoring responses to verify the pipeline end to end.
+
+## Related
+
+- [triage_harness](https://github.com/austingibb/triage_harness) — monitors this pipeline, diagnoses breaks, and proposes verified fixes.
