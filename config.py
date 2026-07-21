@@ -19,6 +19,7 @@ def load_profile(profile_dir: Path) -> UserProfile:
         background=(profile_dir / "background.md").read_text(),
         rules=(profile_dir / "rules.md").read_text(),
         fit_criteria=(profile_dir / "fit_criteria.md").read_text(),
+        request_address=bool(load_locations_config(profile_dir)["locations"]),
     )
 
 
@@ -42,6 +43,16 @@ def load_scorer_config(name: str) -> dict:
     if scorer_path.exists():
         return json.loads(scorer_path.read_text())
     return {}
+
+
+def load_locations_config(profile_dir: Path) -> dict:
+    locations_path = profile_dir / "locations.json"
+    if not locations_path.exists():
+        return {"default_radius_km": 2.5, "locations": []}
+    data = json.loads(locations_path.read_text())
+    data.setdefault("default_radius_km", 2.5)
+    data.setdefault("locations", [])
+    return data
 
 
 def load_dedup_config() -> dict:

@@ -11,7 +11,8 @@ Plugin-based job discovery pipeline that scrapes job boards via Playwright, scor
 1. **Scrape** — A job board plugin (currently LinkedIn) uses Playwright to collect job listings via browser automation
 2. **Prefilter** — Listings are filtered by company name and title keywords before any LLM calls
 3. **Score** — An AI scorer evaluates each remaining listing against your profile, background, and fit criteria, returning a 0-100 score with reasoning
-4. **Report** — Results are ranked by score and written to a Markdown report
+4. **Locate** — (optional) Each scored listing's on-site address is geocoded and ranked by proximity to your configured locations
+5. **Report** — Results are ranked by location tier, then score, and written to a Markdown report
 
 ## Project Structure
 
@@ -19,6 +20,7 @@ Plugin-based job discovery pipeline that scrapes job boards via Playwright, scor
 ai_job_discovery/
 ├── main.py                  # Entry point — orchestrates the pipeline
 ├── config.py                # Loads user configuration from config/
+├── location_resolver.py     # Geocodes job addresses, assigns location tiers
 ├── models.py                # Core data models and plugin/scorer protocols
 ├── config/
 │   ├── examples/            # Example configs (tracked in git)
@@ -32,6 +34,8 @@ ai_job_discovery/
 │   ├── fit_criteria.md      # Scoring criteria (0-100 scale)
 │   ├── rules.md             # Hard filter rules
 │   ├── prefilter.json       # Company/title keyword exclusions
+│   ├── profiles/<name>/
+│   │   └── locations.json   # Per-profile coordinates + radii for location ranking (optional)
 │   └── scorers/             # Personal scorer configs (API keys, project URLs)
 │       └── claude_browser.json
 ├── plugins/
@@ -74,6 +78,7 @@ cp config/examples/background.md config/background.md
 cp config/examples/fit_criteria.md config/fit_criteria.md
 cp config/examples/rules.md config/rules.md
 cp config/examples/prefilter.json config/prefilter.json
+cp config/examples/locations.json config/profiles/<your_profile>/locations.json  # optional — enables location ranking for that profile
 mkdir -p config/scorers
 cp config/examples/scorers/claude_browser.json config/scorers/claude_browser.json
 ```
@@ -86,7 +91,34 @@ cp config/examples/scorers/claude_browser.json config/scorers/claude_browser.jso
 | `config/rules.md` | Hard filters — jobs matching any rule are excluded entirely (e.g., skip roles requiring 6+ YOE) |
 | `config/fit_criteria.md` | Scoring guide — tells the LLM how to evaluate fit on a 0-100 scale |
 | `config/prefilter.json` | Lists of companies and title keywords to exclude before scoring |
+| `config/profiles/<profile>/locations.json` | Per-profile named coordinates + radii for location ranking (optional — see below) |
 | `config/scorers/claude_browser.json` | Claude project URL for the browser scorer (optional — falls back to `claude.ai/new`) |
+
+## Location Ranking (optional)
+
+Location ranking is configured per profile. If `config/profiles/<profile>/locations.json` exists and lists at least one location, scored jobs are ranked by proximity to your configured locations before the report is written. If the file is missing or empty, the entire feature is disabled for that profile: the scorer prompt never asks for an address (so no tokens are spent on it) and the report is ranked by score alone.
+
+```json
+{
+  "default_radius_km": 2.5,
+  "locations": [
+    {"name": "Ballard", "lat": 47.6685, "lon": -122.3844, "radius_km": 2.5},
+    {"name": "Fremont", "lat": 47.6510, "lon": -122.3500}
+  ]
+}
+```
+
+Locations are hand-configured coordinates — `radius_km` per location is optional and falls back to `default_radius_km`. Tip: right-click a spot in Google Maps and copy the lat/lng.
+
+The scorer extracts each job's on-site street address from the posting — it may use web search to pin down the exact office address when the posting doesn't state one, but is instructed not to guess (low confidence or remote jobs yield no address). The address is then geocoded via [Nominatim](https://nominatim.openstreetmap.org). Each listing gets a tier:
+
+- **Tier 1** — within the radius of at least one configured location
+- **Tier 2** — address found and geocoded, but outside all configured radii
+- **Tier 3** — no address determinable, or geocoding failed
+
+The report sorts by tier first, then by score within each tier. The fit score itself is unaffected by location.
+
+Nominatim is a free service with a 1 request/second rate limit; the resolver sleeps 1 second per lookup and caches results (including failures) in `output/geocode_cache.json`, so repeated runs only geocode new addresses.
 
 ## Browser Setup
 

@@ -1,0 +1,7 @@
+{
+  "default_radius_km": 2.5,
+  "locations": [
+    {"name": "Ballard", "lat": 47.6685, "lon": -122.3844, "radius_km": 2.5},
+    {"name": "Fremont", "lat": 47.6510, "lon": -122.3500}
+  ]
+}

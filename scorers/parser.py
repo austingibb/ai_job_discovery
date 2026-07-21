@@ -2,7 +2,13 @@ import re
 
 from models import FilteredResult, JobListing, ScoredResult, ScoringError, ScoringResult
 
-_KNOWN_KEYS = {"JOB_ID", "STATUS", "REASON", "REASONING", "SCORE", "REQS_MATCH", "DOMAIN_MATCH", "GAPS", "HARD_REQUIREMENTS", "PREFERRED_REQUIREMENTS"}
+_KNOWN_KEYS = {"JOB_ID", "STATUS", "REASON", "REASONING", "SCORE", "REQS_MATCH", "DOMAIN_MATCH", "GAPS", "HARD_REQUIREMENTS", "PREFERRED_REQUIREMENTS", "ADDRESS"}
+
+
+def _parse_address(raw: str | None) -> str | None:
+    if raw is None or raw.strip().lower() in {"", "null", "none", "n/a"}:
+        return None
+    return raw.strip()
 
 
 def _parse_block(block: str) -> dict[str, str]:
@@ -92,6 +98,7 @@ def parse_response(response: str, jobs: list[JobListing], start_index: int = 0) 
                     gaps=fields.get("GAPS", "No significant gaps identified"),
                     hard_requirements=fields.get("HARD_REQUIREMENTS", "None listed"),
                     preferred_requirements=fields.get("PREFERRED_REQUIREMENTS", "None listed"),
+                    address=_parse_address(fields.get("ADDRESS")),
                 )
             except KeyError as e:
                 raise ScoringError(

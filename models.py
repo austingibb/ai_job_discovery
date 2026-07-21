@@ -20,6 +20,7 @@ class UserProfile:
     background: str
     rules: str
     fit_criteria: str
+    request_address: bool = False  # ask the scorer for job addresses (profile has locations.json)
 
 
 @dataclass
@@ -36,6 +37,9 @@ class ScoredResult:
     gaps: str
     hard_requirements: str
     preferred_requirements: str
+    address: str | None = None  # on-site street address, None if remote/unknown
+    location_tier: int | None = None  # 1-3, None when location stage is skipped
+    location_note: str = ""
 
 
 @dataclass

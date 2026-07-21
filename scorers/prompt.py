@@ -49,13 +49,15 @@ DOMAIN_MATCH: <integer 0-100, how well candidate's industry/domain experience al
 REASONING: <2-6 sentences explaining the score. Explain the requirements match and domain match scores as well. Cite specific experience from the candidate's background that matches or mismatches the job requirements.>
 GAPS: <1-2 brief sentences describing where the candidate's CV falls short for this job posting. If no significant gaps, write "No significant gaps identified">
 HARD_REQUIREMENTS: <bullet list of the job's hard/must-have requirements, e.g. "- 5+ years Python experience | - Bachelor's in CS or related field". Use " | " to separate items. If none stated, write "None listed">
-PREFERRED_REQUIREMENTS: <bullet list of the job's preferred/nice-to-have requirements, e.g. "- Experience with Kubernetes | - Familiarity with ML pipelines". Use " | " to separate items. If none stated, write "None listed">
+PREFERRED_REQUIREMENTS: <bullet list of the job's preferred/nice-to-have requirements, e.g. "- Experience with Kubernetes | - Familiarity with ML pipelines". Use " | " to separate items. If none stated, write "None listed">{address_line}
 ```
 
 Separate each block with a blank line. Do not include any other text before or after the blocks.\
 Feel free to rethink your decisions if you realise you could better evaluate a job (or rule). 
 As long as you follow the formatting above and add an empty line between each block re-doing a job_id is acceptable. 
 """
+
+_ADDRESS_LINE = """\nADDRESS: <the job's on-site street address, e.g. "920 5th Ave, Seattle, WA". Use the address stated in the posting. If none is stated, you are welcome to use web search or other web tools to find the exact office address for that company and city. If you do not have web search abilities, only use the job information provided. Do not guess — if the job is remote or you cannot determine the address with confidence, write "null">"""
 
 
 def _format_jobs(jobs: list[JobListing], start_index: int = 0) -> str:
@@ -80,6 +82,7 @@ def build_prompt(profile: UserProfile, jobs: list[JobListing], start_index: int 
         rules=profile.rules,
         fit_criteria=profile.fit_criteria,
         jobs=_format_jobs(jobs, start_index),
+        address_line=_ADDRESS_LINE if profile.request_address else "",
     )
 
 

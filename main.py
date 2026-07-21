@@ -16,11 +16,13 @@ from config import (
     _select_profile_dir,
     load_config,
     load_dedup_config,
+    load_locations_config,
     load_prefilter,
     load_profile,
     load_scorer_config,
     load_scraper_config,
 )
+from location_resolver import resolve
 from dedup import DedupStore, _build_store_path
 from dedup_reporting import write_dedup_report
 from plugins.linkedin.linkedin import LinkedInPlugin
@@ -57,6 +59,8 @@ def _build_scorer(scorer_name: str) -> AIScorer:
     if scorer_name == "claude_browser":
         scorer_config = load_scorer_config(scorer_name)
         return ClaudeBrowserScorer(project_url=scorer_config.get("project_url"))
+    if scorer_name == "mock":
+        return MockScorer()
     return LLMScorer(config_name=scorer_name)
 
 
@@ -107,6 +111,13 @@ def _unique_path(path: Path) -> Path:
         next_n += 1
 
 
+_TIER_LABELS = {
+    1: "Tier 1 — Within a configured location radius",
+    2: "Tier 2 — Address found, outside all radii",
+    3: "Tier 3 — No address determined",
+}
+
+
 def report(
     ranked: list[tuple[JobListing, ScoredResult]],
     filtered: list[tuple[JobListing, FilteredResult]],
@@ -117,13 +128,22 @@ def report(
     lines: list[str] = [
         f"# Results: {len(ranked)} scored, {len(filtered)} filtered, {len(failed)} failed, {dedup_count} duplicates removed\n"
     ]
+    has_tiers = any(result.location_tier is not None for _, result in ranked)
+    if has_tiers:
+        ranked = sorted(ranked, key=lambda x: (x[1].location_tier, -x[1].score))
+    current_tier: int | None = None
     for rank, (job, result) in enumerate(ranked, start=1):
+        if has_tiers and result.location_tier != current_tier:
+            current_tier = result.location_tier
+            lines.append(f"\n# {_TIER_LABELS[current_tier]}\n")
         lines.append("---\n")
         lines.append(f"| # | Title | Fit | Link |")
         lines.append(f"|---|-------|-----|------|")
         lines.append(
             f"| {rank} | {_escape_md_pipe(job.title)} at {_escape_md_pipe(job.company)} | {result.score}/100 | [View]({job.url}) |"
         )
+        if has_tiers:
+            lines.append(f"\n**Location:** {result.location_note}")
         lines.append(f"\n**Requirements Match:** {result.requirements_match}/100")
         lines.append(f"**Domain Match:** {result.domain_match}/100\n")
         lines.append(f"{result.reasoning}\n")
@@ -318,6 +338,11 @@ def main() -> None:
     ranked, filtered, failed = score(
         new_jobs_to_score, profile_dir, scorer_name=config["scorer"]
     )
+
+    location_config = load_locations_config(profile_dir)
+    if location_config["locations"]:
+        print(f"Resolving locations for {len(ranked)} scored jobs...")
+        resolve([result for _, result in ranked], location_config)
 
     # Append plugin, profile name and today's date to the report name
     date_str = datetime.now().strftime("%Y_%m_%d")
